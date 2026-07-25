@@ -1,0 +1,137 @@
+/* [기능 1] 하이라이트 + 교정 제안 카드 스타일 (파란색 톤, 깔끔한 느낌) */
+
+.mb-highlight {
+  cursor: pointer;
+  background-image: linear-gradient(to top, rgba(26, 115, 232, 0.35) 35%, transparent 35%);
+  padding-bottom: 1px;
+  border-radius: 2px;
+}
+
+.mb-highlight:hover {
+  background-image: linear-gradient(to top, rgba(26, 115, 232, 0.5) 35%, transparent 35%);
+}
+
+.mb-card-host {
+  position: fixed;
+  z-index: 2147483647;
+}
+
+.mb-card {
+  width: 360px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  font-family: "Google Sans", Roboto, system-ui, sans-serif;
+  color: #202124;
+  position: relative;
+}
+
+.mb-card__arrow {
+  position: absolute;
+  top: -7px;
+  left: 24px;
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  transform: rotate(45deg);
+  box-shadow: -2px -2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.mb-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px 10px 16px;
+}
+
+.mb-card__icon {
+  font-size: 16px;
+}
+
+.mb-card__title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a73e8;
+}
+
+.mb-card__close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: #5f6368;
+  padding: 6px;
+  line-height: 1;
+  border-radius: 50%;
+}
+
+.mb-card__close:hover {
+  background: #f1f3f4;
+}
+
+.mb-card__body {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+
+.mb-card__suggestion,
+.mb-card__reason {
+  flex: 1;
+  font-size: 12.5px;
+  line-height: 1.5;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.mb-card__suggestion {
+  background: #e8f0fe;
+  border-left: 3px solid #1a73e8;
+  color: #174ea6;
+  font-weight: 500;
+}
+
+.mb-card__reason {
+  background: #f8f9fa;
+  color: #5f6368;
+}
+
+.mb-card__actions {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.mb-card__btn {
+  flex: 1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.mb-card__btn--primary {
+  background: #1a73e8;
+  color: #ffffff;
+}
+
+.mb-card__btn--primary:hover {
+  background: #1765cc;
+}
+
+.mb-card__btn--secondary {
+  background: #ffffff;
+  color: #3c4043;
+  border-color: #dadce0;
+}
+
+.mb-card__btn--secondary:hover {
+  background: #f1f3f4;
+}
