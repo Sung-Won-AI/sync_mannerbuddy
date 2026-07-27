@@ -1,0 +1,16 @@
+{
+  "name": "sync-mannerbuddy",
+  "private": true,
+  "version": "0.0.1",
+  "description": "AI 기반 글로벌 비즈니스 매너 케어 플랫폼",
+  "scripts": {
+    "dev:extension": "pnpm --filter extension dev",
+    "dev:dashboard": "pnpm --filter dashboard dev",
+    "build:extension": "pnpm --filter extension build",
+    "build:dashboard": "pnpm --filter dashboard build",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
