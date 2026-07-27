@@ -1,0 +1,37 @@
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #e8eaed;
+}
+
+.app-nav__brand {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a73e8;
+}
+
+.app-nav__links {
+  display: flex;
+  gap: 4px;
+}
+
+.app-nav__link {
+  font-size: 13px;
+  font-weight: 500;
+  color: #5f6368;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 100px;
+}
+
+.app-nav__link:hover {
+  background: #f1f3f4;
+}
+
+.app-nav__link--active {
+  background: #e8f0fe;
+  color: #1a73e8;
+}
