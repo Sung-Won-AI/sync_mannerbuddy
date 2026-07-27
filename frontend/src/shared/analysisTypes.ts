@@ -1,5 +1,5 @@
-// 백엔드(app/schemas/analysis.py)의 필드명을 그대로 따른다. 지금은 백엔드 미연동이라
-// 이 타입은 목업 데이터에만 쓰이지만, 나중에 실제 응답을 받을 때 변환 없이 그대로 쓸 수 있게 맞춰둔다.
+// 백엔드(app/schemas/analysis.py, docs/extension-api-contract.md)의 필드명을 그대로 따른다.
+// 응답을 변환 없이 그대로 사용할 수 있도록 이름과 타입을 맞춰둔다.
 
 export type TargetCountry = "US" | "JP" | "CN";
 export type AnalysisCategory = "vocabulary" | "tone" | "taboo" | "manners";
@@ -14,4 +14,42 @@ export interface AnalysisIssue {
   severity: IssueSeverity;
   reason: string;
   suggestion: string;
+}
+
+export interface AnalysisScores {
+  vocabulary: number;
+  tone: number;
+  taboo: number;
+  manners: number;
+}
+
+export interface EmailAnalysisRequest {
+  text: string;
+  target_country: TargetCountry;
+  language?: string;
+  source?: string;
+  mode?: "manual" | "automatic";
+  client_request_id?: string;
+}
+
+export interface EmailAnalysisResponse {
+  analysis_id: string;
+  status: string;
+  request_id: string | null;
+  overall_score: number;
+  scores: AnalysisScores;
+  issues: AnalysisIssue[];
+  revised_text: string;
+  summary: string;
+  processing_time_ms: number;
+  created_at: string;
+}
+
+export interface ApiErrorResponse {
+  error: {
+    code: string;
+    message: string;
+    details: Record<string, unknown>;
+    request_id: string | null;
+  };
 }

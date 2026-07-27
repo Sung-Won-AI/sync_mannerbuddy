@@ -1,11 +1,9 @@
 // Gmail 작성창 하이라이트 + 교정 제안 카드 엔진.
-// 백엔드 연동 전이라 mockAnalysis.SAMPLE_TRIGGER 문자열을 찾아 하이라이트한다.
-// 연동 시: 텍스트를 백엔드로 보내고, 응답 issues[]의 start_index/end_index로 이 부분을 대체하면 된다.
+// 백엔드 응답 issues[]의 start_index/end_index(분석 시점 텍스트 기준 오프셋)로 구간을 찾아 하이라이트한다.
 
 import { createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { CorrectionCard } from "./CorrectionCard";
-import { SAMPLE_ISSUE, SAMPLE_TRIGGER } from "./mockAnalysis";
 import type { AnalysisIssue } from "../shared/analysisTypes";
 import "./styles.css";
 
@@ -58,7 +56,7 @@ function openCard(anchor: HTMLElement, issue: AnalysisIssue): void {
 // 카드 바깥을 클릭하면 닫히도록. 하이라이트 클릭 핸들러는 stopPropagation으로 이 리스너를 막는다.
 document.addEventListener("click", () => closeCard());
 
-export function scanAndHighlight(container: HTMLElement): void {
+function collectTextNodes(container: HTMLElement): Text[] {
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
     acceptNode(node: Node): number {
       const parent = (node as Text).parentElement;
@@ -69,24 +67,58 @@ export function scanAndHighlight(container: HTMLElement): void {
     }
   });
 
+  const nodes: Text[] = [];
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const textNode = node as Text;
-    const matchIndex = textNode.data.indexOf(SAMPLE_TRIGGER);
-    if (matchIndex === -1) continue;
+    nodes.push(node as Text);
+  }
+  return nodes;
+}
+
+export function clearHighlights(container: HTMLElement): void {
+  container.querySelectorAll<HTMLElement>(`.${HIGHLIGHT_CLASS}`).forEach((span) => {
+    span.replaceWith(document.createTextNode(span.textContent ?? ""));
+  });
+  container.normalize();
+}
+
+// 한 구간을 하이라이트하면 그 뒤 텍스트 노드가 쪼개지므로, 앞쪽 오프셋에 영향을 주지 않도록
+// start_index가 큰 이슈부터(뒤에서 앞으로) 처리한다.
+function highlightRange(container: HTMLElement, startIndex: number, endIndex: number, issue: AnalysisIssue): void {
+  let offset = 0;
+  for (const textNode of collectTextNodes(container)) {
+    const nodeStart = offset;
+    const nodeEnd = offset + textNode.data.length;
+    offset = nodeEnd;
+
+    if (endIndex <= nodeStart || startIndex >= nodeEnd) continue;
+
+    const localStart = Math.max(startIndex, nodeStart) - nodeStart;
+    const localEnd = Math.min(endIndex, nodeEnd) - nodeStart;
+    if (localStart >= localEnd) return;
 
     const range = document.createRange();
-    range.setStart(textNode, matchIndex);
-    range.setEnd(textNode, matchIndex + SAMPLE_TRIGGER.length);
+    range.setStart(textNode, localStart);
+    range.setEnd(textNode, localEnd);
 
     const span = document.createElement("span");
     span.className = HIGHLIGHT_CLASS;
-    span.dataset.mbId = SAMPLE_ISSUE.issue_id;
+    span.dataset.mbId = issue.issue_id;
     span.addEventListener("click", (event) => {
       event.stopPropagation();
-      openCard(span, SAMPLE_ISSUE);
+      openCard(span, issue);
     });
 
     range.surroundContents(span);
-    break; // 데모용 샘플이 하나뿐이라 첫 매치만 하이라이트한다.
+    return; // 노드 경계를 넘나드는 구간은 첫 교차 노드까지만 감싼다.
+  }
+}
+
+export function scanAndHighlight(container: HTMLElement, issues: AnalysisIssue[]): void {
+  clearHighlights(container);
+  if (issues.length === 0) return;
+
+  const byStartDescending = [...issues].sort((a, b) => b.start_index - a.start_index);
+  for (const issue of byStartDescending) {
+    highlightRange(container, issue.start_index, issue.end_index, issue);
   }
 }

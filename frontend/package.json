@@ -2,7 +2,7 @@
   "name": "frontend",
   "private": true,
   "version": "0.0.1",
-  "description": "Gmail 실시간 메일 매너 코치 UI (백엔드 미연동 프로토타입)",
+  "description": "Gmail 실시간 메일 매너 코치 UI (app 백엔드 연동)",
   "type": "module",
   "scripts": {
     "dev": "vite",
