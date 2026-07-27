@@ -30,7 +30,7 @@ export function CorrectionCard({ issue, onApply, onDismiss, onClose }: Correctio
           </div>
           <div className="mb-card__actions">
             <button className="mb-card__btn mb-card__btn--primary" onClick={onApply}>
-              ✎ 원문 수정하기
+              {issue.fix_type === "insert" ? "✎ 여기에 이어쓰기" : "✎ 원문 수정하기"}
             </button>
             <button className="mb-card__btn mb-card__btn--secondary" onClick={onDismiss}>
               ✓ 괜찮아요

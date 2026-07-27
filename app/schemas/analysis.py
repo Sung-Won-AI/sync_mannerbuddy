@@ -53,6 +53,11 @@ class AnalysisScores(BaseModel):
     manners: int = Field(ge=0, le=100)
 
 
+class IssueFixType(str, Enum):
+    REPLACE = "replace"  # suggestion이 original 자리에 그대로 넣을 수 있는 실제 대체 문장
+    INSERT = "insert"  # suggestion이 "이런 걸 추가하라"는 권고일 뿐, 넣을 문장은 사용자가 직접 작성
+
+
 class AnalysisIssue(BaseModel):
     issue_id: str
     original: str
@@ -62,6 +67,7 @@ class AnalysisIssue(BaseModel):
     severity: IssueSeverity
     reason: str
     suggestion: str
+    fix_type: IssueFixType = IssueFixType.REPLACE
 
 
 class AIAnalysisResult(BaseModel):

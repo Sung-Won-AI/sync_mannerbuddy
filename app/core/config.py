@@ -1,6 +1,10 @@
 import os
 from dataclasses import dataclass
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def _read_bool(name: str, default: bool) -> bool:
     value = os.getenv(name)
@@ -31,13 +35,14 @@ class Settings:
     allowed_origins: tuple[str, ...] = tuple(_read_origins())
 
     use_mock_ai: bool = _read_bool("USE_MOCK_AI", True)
-    ai_service_url: str | None = os.getenv("AI_SERVICE_URL") or None
-    ai_service_api_key: str | None = os.getenv("AI_SERVICE_API_KEY") or None
+    claude_api_key: str | None = os.getenv("CLAUDE_API_KEY") or None
+    claude_model: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-5")
+    claude_effort: str = os.getenv("CLAUDE_EFFORT", "medium")
 
     max_email_characters: int = _read_int("MAX_EMAIL_CHARACTERS", 5000)
     analysis_timeout_seconds: int = _read_int(
         "ANALYSIS_TIMEOUT_SECONDS",
-        30,
+        60,
     )
 
 

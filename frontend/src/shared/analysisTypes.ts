@@ -4,6 +4,10 @@
 export type TargetCountry = "US" | "JP" | "CN";
 export type AnalysisCategory = "vocabulary" | "tone" | "taboo" | "manners";
 export type IssueSeverity = "low" | "medium" | "high";
+// "replace": suggestion을 original 자리에 그대로 넣으면 되는 실제 대체 문장.
+// "insert": 인사말/마무리처럼 원문에 없는 걸 새로 추가해야 하는 경우 — suggestion은
+// "무엇을 넣으면 좋을지"에 대한 권고일 뿐, 그대로 삽입할 문장이 아니다.
+export type IssueFixType = "replace" | "insert";
 
 export interface AnalysisIssue {
   issue_id: string;
@@ -14,6 +18,7 @@ export interface AnalysisIssue {
   severity: IssueSeverity;
   reason: string;
   suggestion: string;
+  fix_type: IssueFixType;
 }
 
 export interface AnalysisScores {
