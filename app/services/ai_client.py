@@ -219,16 +219,21 @@ class ClaudeAIClient(BaseAIClient):
             f"email text:\n{masked_text}"
         )
 
+        # Haiku 4.5는 구형 모델 취급이라 thinking/effort 파라미터 형태가 달라서
+        # (effort는 아예 400 에러) Sonnet/Opus 계열에서만 지정한다.
+        request_kwargs: dict = {
+            "model": settings.claude_model,
+            "max_tokens": 4096,
+            "system": system_prompt,
+            "messages": [{"role": "user", "content": user_content}],
+            "output_format": AIAnalysisResult,
+        }
+        if "haiku" not in settings.claude_model:
+            request_kwargs["thinking"] = {"type": "disabled"}
+            request_kwargs["output_config"] = {"effort": settings.claude_effort}
+
         try:
-            response = await self._client.messages.parse(
-                model=settings.claude_model,
-                max_tokens=4096,
-                thinking={"type": "disabled"},
-                output_config={"effort": settings.claude_effort},
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_content}],
-                output_format=AIAnalysisResult,
-            )
+            response = await self._client.messages.parse(**request_kwargs)
         except Exception as exc:
             raise AIServiceUnavailableError() from exc
 
