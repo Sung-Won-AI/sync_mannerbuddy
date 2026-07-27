@@ -1,5 +1,0 @@
-packages:
-  - "extension"
-  - "dashboard"
-allowBuilds:
-  esbuild: true
