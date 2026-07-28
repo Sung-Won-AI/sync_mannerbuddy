@@ -79,3 +79,17 @@ class EmailAnalysisResponse(AIAnalysisResult):
     processing_time_ms: int = Field(ge=0)
     created_at: datetime
 
+
+class AnalysisListItem(BaseModel):
+    analysis_id: str
+    kind: str
+    target_country: TargetCountry
+    overall_score: int
+    summary: str
+    created_at: datetime
+
+
+class AnalysisListResponse(BaseModel):
+    items: list[AnalysisListItem]
+    total: int
+
