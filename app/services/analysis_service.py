@@ -4,9 +4,15 @@ from uuid import uuid4
 
 from app.schemas.analysis import (
     AnalysisIssue,
+    AnalysisListItem,
+    AnalysisListResponse,
     EmailAnalysisRequest,
     EmailAnalysisResponse,
 )
+from app.core.config import settings
+from app.core.exceptions import ResourceNotFoundError
+from app.repositories.memory_repository import repository
+from app.schemas.feedback import AnalysisActionRequest, AnalysisActionResponse
 from app.services.ai_client import get_ai_client
 from app.services.masking_service import masking_service
 
@@ -19,7 +25,6 @@ class AnalysisService:
         request_id: str | None,
         extension_version: str | None,
     ) -> EmailAnalysisResponse:
-        del extension_version  # Reserved for logging/persistence in the next step.
         started_at = perf_counter()
 
         masking_result = masking_service.mask(payload.text)
@@ -45,7 +50,7 @@ class AnalysisService:
             for issue in result.issues
         ]
 
-        return EmailAnalysisResponse(
+        response = EmailAnalysisResponse(
             analysis_id=str(uuid4()),
             request_id=request_id,
             overall_score=result.overall_score,
@@ -58,6 +63,76 @@ class AnalysisService:
             summary=result.summary,
             processing_time_ms=round((perf_counter() - started_at) * 1000),
             created_at=datetime.now(UTC),
+        )
+        repository.save_analysis(
+            {
+                **response.model_dump(mode="json"),
+                "created_at": response.created_at,
+                "user_id": settings.demo_user_id,
+                "kind": "email",
+                "target_country": payload.target_country.value,
+                "extension_version": extension_version,
+                "client_request_id": payload.client_request_id,
+            }
+        )
+        return response
+
+    def list_analyses(
+        self,
+        *,
+        kind: str | None,
+        limit: int,
+    ) -> AnalysisListResponse:
+        records = repository.list_analyses(
+            settings.demo_user_id,
+            kind=kind,
+            limit=limit,
+        )
+        items = [
+            AnalysisListItem(
+                analysis_id=record["analysis_id"],
+                kind=record["kind"],
+                target_country=record["target_country"],
+                overall_score=record["overall_score"],
+                summary=record["summary"],
+                created_at=record["created_at"],
+            )
+            for record in records
+        ]
+        return AnalysisListResponse(items=items, total=len(items))
+
+    def save_action(
+        self,
+        analysis_id: str,
+        payload: AnalysisActionRequest,
+    ) -> AnalysisActionResponse:
+        analysis = repository.get_analysis(
+            analysis_id,
+            settings.demo_user_id,
+        )
+        if analysis is None:
+            raise ResourceNotFoundError("분석 결과")
+
+        issue_ids = {
+            issue["issue_id"]
+            for issue in analysis.get("issues", [])
+        }
+        if payload.issue_id not in issue_ids:
+            raise ResourceNotFoundError("분석 문제")
+
+        repository.save_action(
+            {
+                "user_id": settings.demo_user_id,
+                "analysis_id": analysis_id,
+                "issue_id": payload.issue_id,
+                "action": payload.action.value,
+            }
+        )
+        return AnalysisActionResponse(
+            saved=True,
+            analysis_id=analysis_id,
+            issue_id=payload.issue_id,
+            action=payload.action,
         )
 
 
