@@ -30,3 +30,12 @@ class AIResponseValidationError(AppError):
             "AI 분석 결과의 형식이 올바르지 않습니다.",
             status_code=502,
         )
+
+
+class ResourceNotFoundError(AppError):
+    def __init__(self, resource: str) -> None:
+        super().__init__(
+            "RESOURCE_NOT_FOUND",
+            f"{resource}을(를) 찾을 수 없습니다.",
+            status_code=404,
+        )
