@@ -39,6 +39,15 @@ class Settings:
         "ANALYSIS_TIMEOUT_SECONDS",
         30,
     )
+    demo_user_id: str = os.getenv("DEMO_USER_ID", "demo-user")
+    max_meeting_characters: int = _read_int(
+        "MAX_MEETING_CHARACTERS",
+        30000,
+    )
+    storage_backend: str = os.getenv("STORAGE_BACKEND", "memory")
+    supabase_url: str | None = os.getenv("SUPABASE_URL") or None
+    supabase_secret_key: str | None = os.getenv("SUPABASE_SECRET_KEY") or None
 
 
 settings = Settings()
+
