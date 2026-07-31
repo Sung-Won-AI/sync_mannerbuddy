@@ -49,6 +49,16 @@ function placeCursorAfter(anchor: HTMLElement): void {
   textNode.parentElement?.closest<HTMLElement>('[contenteditable="true"]')?.focus();
 }
 
+// 하나의 issue가 DOM 텍스트 노드 경계를 넘나들면 highlightRange가 span을 여러 개로
+// 쪼개어 감싼다(같은 data-mb-id 공유). 적용/무시 시 클릭된 anchor 하나만 고치면 나머지
+// 조각이 원문에 그대로 남아 중복되므로, 같은 issue의 span을 전부 찾아 함께 처리한다.
+function findSiblingSpans(anchor: HTMLElement, issue: AnalysisIssue): HTMLElement[] {
+  const scope = anchor.closest<HTMLElement>('[contenteditable="true"]') ?? document.body;
+  return Array.from(
+    scope.querySelectorAll<HTMLElement>(`.${HIGHLIGHT_CLASS}[data-mb-id="${issue.issue_id}"]`)
+  );
+}
+
 function openCard(anchor: HTMLElement, issue: AnalysisIssue): void {
   const { host, root } = ensureCardHost();
   const rect = anchor.getBoundingClientRect();
@@ -70,17 +80,23 @@ function openCard(anchor: HTMLElement, issue: AnalysisIssue): void {
     createElement(CorrectionCard, {
       issue,
       onApply: () => {
+        const spans = findSiblingSpans(anchor, issue);
         if (issue.fix_type === "insert") {
           // suggestion은 "무엇을 추가하라"는 권고일 뿐 실제 삽입 문장이 아니므로,
           // 원문은 그대로 두고 사용자가 이어서 직접 쓸 수 있게 커서만 그 위치로 옮긴다.
           placeCursorAfter(anchor);
+          spans.filter((span) => span !== anchor).forEach((span) => span.replaceWith(document.createTextNode(span.textContent ?? "")));
         } else {
-          anchor.replaceWith(document.createTextNode(issue.suggestion));
+          // 여러 조각으로 나뉘어 있었다면 첫 조각만 suggestion으로 바꾸고 나머지는 통째로 지운다.
+          spans[0]?.replaceWith(document.createTextNode(issue.suggestion));
+          spans.slice(1).forEach((span) => span.remove());
         }
         closeCard();
       },
       onDismiss: () => {
-        anchor.replaceWith(document.createTextNode(anchor.textContent ?? ""));
+        findSiblingSpans(anchor, issue).forEach((span) => {
+          span.replaceWith(document.createTextNode(span.textContent ?? ""));
+        });
         closeCard();
       },
       onClose: closeCard
@@ -129,7 +145,7 @@ function highlightRange(container: HTMLElement, startIndex: number, endIndex: nu
 
     const localStart = Math.max(startIndex, nodeStart) - nodeStart;
     const localEnd = Math.min(endIndex, nodeEnd) - nodeStart;
-    if (localStart >= localEnd) return;
+    if (localStart >= localEnd) continue;
 
     const range = document.createRange();
     range.setStart(textNode, localStart);
@@ -144,7 +160,11 @@ function highlightRange(container: HTMLElement, startIndex: number, endIndex: nu
     });
 
     range.surroundContents(span);
-    return; // 노드 경계를 넘나드는 구간은 첫 교차 노드까지만 감싼다.
+
+    // 이 구간이 여러 텍스트 노드에 걸쳐 있으면(문장 사이 줄바꿈 등으로 노드가 나뉜 경우)
+    // 나머지 부분도 마저 감싸도록 다음 노드로 계속 진행한다. 여기서 return하면 뒷부분이
+    // 하이라이트/치환 대상에서 빠져 원문이 그대로 남아버린다.
+    if (endIndex <= nodeEnd) return;
   }
 }
 

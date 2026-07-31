@@ -1,5 +1,6 @@
--- app/schemas/analysis.py의 EmailAnalysisRequest/EmailAnalysisResponse와 필드명을 맞춘 스키마.
--- 개인정보 마스킹(masking_service)을 거친 텍스트만 저장한다 (원문 이메일/전화/금액은 저장하지 않음).
+-- Demo data should use synthetic content only.
+-- The backend's current default is an in-memory repository, so this file is
+-- intentionally empty until Supabase Auth user IDs are available.
 
 create extension if not exists pgcrypto;
 

@@ -2,14 +2,23 @@
 
 국가별 비즈니스 문화 차이로 발생하는 커뮤니케이션 문제를 분석하는 Chrome 확장 프로그램용 백엔드 서버입니다.
 
-## 주요 기능
+## 구현 기능
 
-- 이메일 표현 분석 API
-- 개인정보 및 민감정보 마스킹
-- AI 분석 서비스 연동
-- 분석 결과 저장 및 조회
-- 추천 표현 채택 기록
-- 사용자별 통계 제공
+1. 이메일 표현 교정
+   - 국가별 4대 기준 분석
+   - 민감정보 마스킹
+   - 문제 표현과 추천 표현 제공
+   - 추천 표현 채택 기록
+2. 회의록 피드백
+   - 회의록 텍스트 분석
+   - 회의 온도, 핵심 내용, 후속 업무 제공
+3. 개인 대시보드
+   - 분석 횟수와 평균 점수
+   - 국가별 사용량과 빈출 실수
+   - 점수 변화와 추천 표현 채택 수
+4. 맞춤형 학습
+   - 최근 실수 기반 3분 퀴즈
+   - 정답 확인과 문화적 해설
 
 ## 기술 스택
 
@@ -81,17 +90,38 @@ API 문서:
 http://localhost:8000/docs
 ```
 
-## 주요 API
+## 로컬 실행
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+fastapi dev app/main.py
+```
+
+- API: `http://127.0.0.1:8000`
+- API 문서: `http://127.0.0.1:8000/docs`
+
+## 테스트
+
+```bash
+pytest
+```
+
+## 핵심 API
 
 | Method | Endpoint | 설명 |
 |---|---|---|
 | GET | `/health` | 서버 상태 확인 |
-| POST | `/api/v1/analyses/email` | 이메일 표현 분석 |
-| GET | `/api/v1/analyses` | 분석 이력 조회 |
-| GET | `/api/v1/analyses/{id}` | 분석 상세 조회 |
+| POST | `/api/v1/analyses/email` | 이메일 문화 매너 분석 |
+| GET | `/api/v1/analyses` | 이메일·회의 분석 이력 |
 | POST | `/api/v1/analyses/{id}/actions` | 추천 표현 채택 기록 |
-| GET | `/api/v1/dashboard/summary` | 사용자 통계 조회 |
-| POST | `/api/v1/feedback` | 사용자 피드백 저장 |
+| POST | `/api/v1/meetings/transcript` | 회의록 피드백 |
+| GET | `/api/v1/dashboard/summary` | 개인 대시보드 |
+| GET | `/api/v1/quizzes` | 맞춤형 퀴즈 생성 |
+| POST | `/api/v1/quizzes/{id}/answer` | 퀴즈 답안 제출 |
+| POST | `/api/v1/feedback` | CBT 사용자 피드백
 
 ## 테스트
 

@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from uuid import uuid4
 
@@ -12,6 +13,8 @@ from app.schemas.analysis import (
     AnalysisScores,
     EmailAnalysisRequest,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAIClient(ABC):
@@ -166,6 +169,12 @@ fix_type 규칙(중요): 각 issue는 반드시 아래 둘 중 하나로 fix_typ
 - "replace": original 위치의 문구를 suggestion으로 그대로 바꿔치기하면 되는 경우.
   이때 suggestion은 반드시 original과 같은 언어로 쓰인, 그 자리에 바로 넣을 수
   있는 완성된 문장/구여야 합니다. 설명이나 권고 문구가 아닙니다.
+  original의 범위는 반드시 suggestion이 다시 쓴 범위와 정확히 일치해야 합니다
+  — suggestion이 문장 전체를 다시 썼다면 original도 그 문장 전체(마침표/물음표
+  등 문장부호까지)를 가리켜야 하고, 단어 하나만 바꿨다면 original도 그 단어만
+  가리켜야 합니다. original을 문장의 일부(예: 앞부분 몇 단어)로 좁게 잡고
+  suggestion은 문장 전체를 다시 쓰면, 교체 후 나머지 원문 조각이 그대로 남아
+  같은 내용이 중복되므로 절대 이렇게 하지 마세요.
 - "insert": 인사말, 마무리 인사, 서명처럼 원문에 아예 없는 것을 새로 추가해야
   하는 경우. 이때는 실제로 넣을 문장을 만들어 그 자리에 끼워 넣을 수 없으므로
   suggestion은 "무엇을 추가하면 좋은지"에 대한 권고 설명으로 작성하세요.
@@ -235,6 +244,7 @@ class ClaudeAIClient(BaseAIClient):
         try:
             response = await self._client.messages.parse(**request_kwargs)
         except Exception as exc:
+            logger.exception("Claude API call failed (model=%s)", settings.claude_model)
             raise AIServiceUnavailableError() from exc
 
         if getattr(response, "stop_reason", None) == "refusal":
