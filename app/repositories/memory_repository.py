@@ -4,9 +4,11 @@ from datetime import UTC, datetime, timedelta
 from threading import Lock
 from uuid import uuid4
 
+from app.repositories.base import Repository
 
-class MemoryRepository:
-    """Demo persistence. Replace with SupabaseRepository for production."""
+
+class MemoryRepository(Repository):
+    """Demo persistence. See SupabaseRepository for the production backend."""
 
     def __init__(self) -> None:
         self._lock = Lock()
@@ -52,6 +54,20 @@ class MemoryRepository:
             self._actions.append(stored)
         return deepcopy(stored)
 
+    def list_actions(
+        self,
+        user_id: str,
+        *,
+        action: str | None = None,
+    ) -> list[dict]:
+        records = [
+            record
+            for record in self._actions
+            if record["user_id"] == user_id
+            and (action is None or record["action"] == action)
+        ]
+        return deepcopy(records)
+
     def save_feedback(self, record: dict) -> dict:
         stored = {"id": str(uuid4()), **record, "created_at": datetime.now(UTC)}
         with self._lock:
@@ -77,6 +93,7 @@ class MemoryRepository:
                 "records": [],
                 "country_counts": Counter(),
                 "issue_counts": Counter(),
+                "fixed_issue_counts": Counter(),
                 "accepted_suggestions": 0,
             }
 
@@ -86,20 +103,32 @@ class MemoryRepository:
             for record in records
             for issue in record.get("issues", [])
         )
+
         analysis_ids = {record["analysis_id"] for record in records}
-        accepted = sum(
-            1
-            for action in self._actions
+        accepted_actions = [
+            action
+            for action in self.list_actions(user_id, action="accepted")
             if action["analysis_id"] in analysis_ids
-            and action["action"] == "accepted"
+        ]
+        accepted_issue_ids_by_analysis: dict[str, set[str]] = {}
+        for action in accepted_actions:
+            accepted_issue_ids_by_analysis.setdefault(
+                action["analysis_id"], set()
+            ).add(action["issue_id"])
+
+        fixed_issue_counts = Counter(
+            issue["category"]
+            for record in records
+            for issue in record.get("issues", [])
+            if issue["issue_id"]
+            in accepted_issue_ids_by_analysis.get(record["analysis_id"], set())
         )
+
         return {
             "records": deepcopy(records),
             "country_counts": country_counts,
             "issue_counts": issue_counts,
-            "accepted_suggestions": accepted,
+            "fixed_issue_counts": fixed_issue_counts,
+            "accepted_suggestions": len(accepted_actions),
         }
-
-
-repository = MemoryRepository()
 

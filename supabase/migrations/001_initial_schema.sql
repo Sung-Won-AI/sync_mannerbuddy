@@ -1,5 +1,9 @@
 create extension if not exists "pgcrypto";
 
+-- issues/key_points/action_items/flow는 항상 부모 analysis와 함께 통째로
+-- 읽고 쓰기 때문에(개별 issue를 따로 조회하는 곳이 없음) 별도 테이블로
+-- 정규화하지 않고 jsonb 컬럼으로 둔다. app/repositories/supabase_repository.py
+-- 참고.
 create table if not exists public.analyses (
     id uuid primary key default gen_random_uuid(),
     user_id uuid,
@@ -16,6 +20,7 @@ create table if not exists public.analyses (
     meeting_temperature integer check (meeting_temperature between 0 and 100),
     revised_text text,
     summary text not null,
+    issues jsonb not null default '[]'::jsonb,
     key_points jsonb not null default '[]'::jsonb,
     action_items jsonb not null default '[]'::jsonb,
     flow jsonb not null default '[]'::jsonb,
@@ -25,25 +30,11 @@ create table if not exists public.analyses (
     created_at timestamptz not null default now()
 );
 
-create table if not exists public.analysis_issues (
-    id uuid primary key default gen_random_uuid(),
-    analysis_id uuid not null references public.analyses(id) on delete cascade,
-    original_text text not null,
-    start_index integer not null default 0,
-    end_index integer not null default 0,
-    category text not null check (
-        category in ('vocabulary', 'tone', 'taboo', 'manners')
-    ),
-    severity text not null check (severity in ('low', 'medium', 'high')),
-    reason text not null,
-    suggestion text not null,
-    created_at timestamptz not null default now()
-);
-
 create table if not exists public.analysis_actions (
     id uuid primary key default gen_random_uuid(),
     analysis_id uuid not null references public.analyses(id) on delete cascade,
-    issue_id uuid references public.analysis_issues(id) on delete set null,
+    -- AI가 매기는 issue_id는 UUID가 아닐 수 있어(예: "TONE_001") FK 대신 text로 둔다.
+    issue_id text,
     user_id uuid,
     action text not null check (
         action in ('accepted', 'rejected', 'copied', 'dismissed')
@@ -72,9 +63,6 @@ create table if not exists public.feedback (
 
 create index if not exists analyses_user_created_idx
     on public.analyses(user_id, created_at desc);
-
-create index if not exists analysis_issues_analysis_idx
-    on public.analysis_issues(analysis_id);
 
 create unique index if not exists analyses_client_request_idx
     on public.analyses(user_id, client_request_id)

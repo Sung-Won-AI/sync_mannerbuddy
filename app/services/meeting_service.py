@@ -3,7 +3,7 @@ from time import perf_counter
 from uuid import uuid4
 
 from app.core.config import settings
-from app.repositories.memory_repository import repository
+from app.repositories import repository
 from app.schemas.analysis import AnalysisIssue, AnalysisScores, IssueSeverity
 from app.schemas.meeting import (
     MeetingAnalysisRequest,

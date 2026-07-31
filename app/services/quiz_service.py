@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundError
-from app.repositories.memory_repository import repository
+from app.repositories import repository
 from app.schemas.quiz import (
     QuizAnswerRequest,
     QuizAnswerResponse,
@@ -22,10 +22,21 @@ class QuizService:
             settings.demo_user_id,
             limit=50,
         )
+        # 복습 퀴즈는 "실제로 고친 표현"을 대상으로 해야 의미가 있다. AI가
+        # 지적했지만 사용자가 거부(rejected)했거나 아무 조치도 안 한 issue까지
+        # 퀴즈로 내면 본인이 동의하지 않은 내용을 복습시키는 셈이라 accepted만 쓴다.
+        accepted_pairs = {
+            (action["analysis_id"], action["issue_id"])
+            for action in repository.list_actions(
+                settings.demo_user_id,
+                action="accepted",
+            )
+        }
         issue_sources = [
             (analysis, issue)
             for analysis in analyses
             for issue in analysis.get("issues", [])
+            if (analysis["analysis_id"], issue["issue_id"]) in accepted_pairs
         ]
 
         questions: list[QuizQuestion] = []

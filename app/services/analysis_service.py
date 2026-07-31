@@ -10,7 +10,7 @@ from app.schemas.analysis import (
 )
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundError
-from app.repositories.memory_repository import repository
+from app.repositories import repository
 from app.schemas.feedback import AnalysisActionRequest, AnalysisActionResponse
 from app.services.ai_client import get_ai_client
 from app.services.issue_resolution import resolve_and_restore_issues

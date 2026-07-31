@@ -63,7 +63,13 @@ def test_dashboard_aggregates_email_and_meeting(client):
 
 
 def test_quiz_is_generated_from_analysis_issue(client):
-    _analyze_email(client)
+    analysis = _analyze_email(client)
+    issue_id = analysis["issues"][0]["issue_id"]
+    accept_response = client.post(
+        f"/api/v1/analyses/{analysis['analysis_id']}/actions",
+        json={"issue_id": issue_id, "action": "accepted"},
+    )
+    assert accept_response.status_code == 200
 
     quiz_response = client.get("/api/v1/quizzes?limit=3")
     assert quiz_response.status_code == 200
@@ -112,6 +118,20 @@ def test_suggestion_action_and_feedback(client):
 
     dashboard = client.get("/api/v1/dashboard/summary").json()
     assert dashboard["accepted_suggestions"] == 1
+    assert dashboard["fixed_issues"]
+
+
+def test_quiz_excludes_unaccepted_issues(client):
+    _analyze_email(client)
+
+    quiz = client.get("/api/v1/quizzes?limit=3").json()
+
+    # accept한 issue가 하나도 없으므로 실제 이메일 문구가 아니라 기본 폴백 문제로 대체돼야 한다.
+    assert not any(
+        option["text"].startswith("Would it be possible")
+        for question in quiz["questions"]
+        for option in question["options"]
+    )
 
 
 def test_analysis_history(client):

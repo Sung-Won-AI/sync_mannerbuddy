@@ -1,12 +1,13 @@
 import os
 
 os.environ["USE_MOCK_AI"] = "true"
+os.environ["STORAGE_BACKEND"] = "memory"
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.repositories.memory_repository import repository
+from app.repositories import repository
 
 
 @pytest.fixture

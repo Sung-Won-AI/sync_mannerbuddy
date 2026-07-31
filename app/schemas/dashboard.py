@@ -28,5 +28,6 @@ class DashboardSummary(BaseModel):
     scores: AnalysisScores
     country_usage: list[CountryUsage]
     frequent_issues: list[FrequentIssue]
+    fixed_issues: list[FrequentIssue]
     score_trend: list[ScoreTrendPoint]
     accepted_suggestions: int

@@ -1,6 +1,6 @@
 from app.core.config import settings
 from app.core.exceptions import ResourceNotFoundError
-from app.repositories.memory_repository import repository
+from app.repositories import repository
 from app.schemas.feedback import FeedbackRequest, FeedbackResponse
 
 

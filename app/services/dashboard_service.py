@@ -2,7 +2,7 @@ from collections import defaultdict
 from statistics import mean
 
 from app.core.config import settings
-from app.repositories.memory_repository import repository
+from app.repositories import repository
 from app.schemas.analysis import AnalysisScores
 from app.schemas.dashboard import (
     CountryUsage,
@@ -32,6 +32,7 @@ class DashboardService:
                 ),
                 country_usage=[],
                 frequent_issues=[],
+                fixed_issues=[],
                 score_trend=[],
                 accepted_suggestions=0,
             )
@@ -63,6 +64,10 @@ class DashboardService:
             frequent_issues=[
                 FrequentIssue(category=str(category), count=count)
                 for category, count in data["issue_counts"].most_common(4)
+            ],
+            fixed_issues=[
+                FrequentIssue(category=str(category), count=count)
+                for category, count in data["fixed_issue_counts"].most_common(4)
             ],
             score_trend=[
                 ScoreTrendPoint(
