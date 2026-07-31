@@ -1,4 +1,5 @@
 import logging
+import re
 from abc import ABC, abstractmethod
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from app.schemas.analysis import (
     AnalysisScores,
     EmailAnalysisRequest,
 )
+from app.schemas.meeting import AIMeetingAnalysisResult, MeetingAnalysisRequest
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,15 @@ class BaseAIClient(ABC):
         masked_text: str,
         request: EmailAnalysisRequest,
     ) -> AIAnalysisResult:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def analyze_meeting(
+        self,
+        *,
+        masked_transcript: str,
+        request: MeetingAnalysisRequest,
+    ) -> AIMeetingAnalysisResult:
         raise NotImplementedError
 
 
@@ -81,6 +92,81 @@ class MockAIClient(BaseAIClient):
             issues=[],
             revised_text=masked_text,
             summary="Mock 분석에서 뚜렷한 문화적 위험 표현을 찾지 못했습니다.",
+        )
+
+    _DIRECT_PHRASES = (
+        "you are wrong",
+        "that's wrong",
+        "do it now",
+        "you must",
+    )
+
+    @staticmethod
+    def _line_speaker(text: str, index: int) -> str | None:
+        line_start = text.rfind("\n", 0, index) + 1
+        line_end = text.find("\n", index)
+        if line_end == -1:
+            line_end = len(text)
+        match = re.match(r"^([^:：]{1,40})[:：]", text[line_start:line_end])
+        return match.group(1).strip() if match else None
+
+    @staticmethod
+    def _is_counterpart(speaker: str | None, counterpart_name: str | None) -> bool:
+        if not speaker or not counterpart_name:
+            return False
+        speaker_l, counterpart_l = speaker.lower(), counterpart_name.lower()
+        return speaker_l in counterpart_l or counterpart_l in speaker_l
+
+    async def analyze_meeting(
+        self,
+        *,
+        masked_transcript: str,
+        request: MeetingAnalysisRequest,
+    ) -> AIMeetingAnalysisResult:
+        lowered = masked_transcript.lower()
+        issues: list[AnalysisIssue] = []
+        for phrase in self._DIRECT_PHRASES:
+            start = lowered.find(phrase)
+            if start < 0:
+                continue
+            if self._is_counterpart(
+                self._line_speaker(masked_transcript, start),
+                request.counterpart_name,
+            ):
+                continue
+            original = masked_transcript[start : start + len(phrase)]
+            issues.append(
+                AnalysisIssue(
+                    issue_id=str(uuid4()),
+                    original=original,
+                    start_index=start,
+                    end_index=start + len(phrase),
+                    category=AnalysisCategory.TONE,
+                    severity="medium",
+                    reason="직접적인 반박이나 명령으로 받아들여질 수 있습니다.",
+                    suggestion="Could we consider another perspective?",
+                    fix_type="replace",
+                )
+            )
+
+        penalty = min(40, len(issues) * 12)
+        return AIMeetingAnalysisResult(
+            scores=AnalysisScores(
+                vocabulary=86,
+                tone=max(40, 88 - penalty),
+                taboo=92,
+                manners=max(45, 86 - penalty),
+            ),
+            issues=issues,
+            summary="회의의 핵심 논의와 문화적 커뮤니케이션 위험을 분석했습니다.",
+            key_points=[
+                "참석자들이 일정과 업무 우선순위를 논의했습니다.",
+                "직접적인 표현은 완곡한 제안형 표현으로 바꾸는 것이 좋습니다.",
+            ],
+            action_items=[
+                "담당자와 완료 기한을 다시 확인합니다.",
+                "후속 이메일에서 결정 사항을 정리합니다.",
+            ],
         )
 
 
@@ -202,6 +288,60 @@ _BEFORE_SEND_MODE_INSTRUCTION = """지금은 "발송 전 전체 검토" 모드�
   쓰세요 (예: "이메일 끝에 감사 인사와 서명을 추가하세요")."""
 
 
+_MEETING_SYSTEM_PROMPT = """당신은 국제 비즈니스 화상회의의 문화적 매너를 검토하는 전문 코치입니다.
+
+주어진 회의 대화록(화자: 대사 형식)을 target_country의 비즈니스 문화 기준으로
+검토하고, 반드시 아래 4개 카테고리로 0~100점을 매기세요:
+- vocabulary: 격식 수준과 어휘 선택이 비즈니스 회의에 적절한가
+- tone: 어조가 지나치게 직접적이거나 명령조, 무례하지는 않은가
+- taboo: 문화적으로 민감하거나 금기시되는 발언이 있는가
+- manners: 인사, 자기소개, 스몰토크, 마무리 인사 등 해당 문화권의 회의 예절을 따르는가
+
+국가별 참고 기준:
+- US: 본론에 빠르게 들어가는 건 괜찮지만, 처음 만난 상대를 사전 허락 없이
+  애칭(예: Joseph을 Joe)으로 부르는 건 무례하게 들릴 수 있다 — 상대가 먼저
+  애칭을 제안하기 전까지는 원래 이름을 쓴다. 상대의 외모나 컨디션을 평가하듯
+  말하는 인사("You look tired today")도 피하고, 가벼운 안부 인사로 대체하는
+  편이 자연스럽다.
+- JP: 갑작스러운 본론 진입은 강압적으로 들릴 수 있다. 짧은 인사와 감사
+  표현으로 시작하고, 직접적인 반박이나 명령형 표현("You are wrong",
+  "You must") 대신 완곡한 제안형 표현을 쓰는 것이 좋다.
+- CN: 체면(面子)을 존중하는 것이 중요하다. 여러 사람 앞에서 상대를 직접
+  반박하거나 실수를 지적하는 표현은 피하고, 완곡하게 대안을 제시한다.
+
+대화록은 개인정보 마스킹이 이미 적용된 상태입니다. [EMAIL_1], [PHONE_1],
+[MONEY_1] 같은 대괄호 토큰은 그대로 유지하고 절대 다른 내용으로 바꾸지 마세요.
+
+issues[]의 start_index/end_index는 입력된 대화록 문자열(화자 표기 포함) 기준
+0-indexed 문자 오프셋이어야 합니다. 문제가 없으면 issues는 빈 배열로 반환하세요.
+
+출력 언어 규칙(중요): reason, summary, key_points, action_items는 target_country와
+관계없이 항상 한국어로 작성하세요. 그리고 이 한국어 문장들은 예외 없이 전부
+존댓말(~습니다/~해요체)로 작성하세요 — 반말 종결어미(~해, ~야, ~다, ~자 등)는
+절대 쓰지 마세요.
+
+counterpart_name 규칙(중요): user 메시지에 counterpart_name이 주어지면, 그
+이름에 해당하는 화자(대화록의 "이름:" 표기와 느슨하게 대조 — counterpart_name이
+"Joseph Miller (ABC Marketing)"처럼 성명+회사 형태여도 "Joseph"라는 화자 표기와
+같은 사람으로 판단)의 발화는 issues 평가 대상에서 완전히 제외하세요. 그 사람의
+발화는 대화 맥락을 이해하는 데만 쓰고, 매너 관련 지적(issues)은 오직 다른
+화자(=사용자 자신)의 발화에 대해서만 하세요. counterpart_name이 없으면 모든
+화자의 발화를 평가 대상으로 삼으세요. summary/key_points/action_items는
+counterpart_name 여부와 관계없이 회의 전체 내용을 다룹니다.
+
+fix_type 규칙(중요): 각 issue는 반드시 아래 둘 중 하나로 fix_type을 지정하세요.
+- "replace": 실제로 한 발언을 다른 표현으로 바꿔 말했으면 좋았을 경우. suggestion은
+  original과 같은 언어로, 그 자리에 바로 대체할 수 있는 완성된 문장/구여야 합니다.
+  original의 범위는 반드시 suggestion이 다시 쓴 범위와 정확히 일치해야 합니다.
+- "insert": 인사말, 자기소개, 마무리 인사처럼 아예 없었던 것을 추가했어야 하는
+  경우. suggestion은 "무엇을 보완하면 좋은지"에 대한 권고 설명으로 작성하세요.
+  original/start_index/end_index는 그 추가가 필요한 위치 근처의 실제 발언
+  일부를 가리키면 됩니다.
+
+key_points에는 회의에서 실제로 논의된 핵심 내용을 2~4개, action_items에는
+회의 후 실행해야 할 후속 조치를 1~3개 한국어로 정리하세요."""
+
+
 class ClaudeAIClient(BaseAIClient):
     def __init__(self) -> None:
         if not settings.claude_api_key:
@@ -260,6 +400,50 @@ class ClaudeAIClient(BaseAIClient):
             result.issues = [issue for issue in result.issues if issue.category != AnalysisCategory.MANNERS]
         else:
             result.issues = [issue for issue in result.issues if issue.category == AnalysisCategory.MANNERS]
+
+        return result
+
+    async def analyze_meeting(
+        self,
+        *,
+        masked_transcript: str,
+        request: MeetingAnalysisRequest,
+    ) -> AIMeetingAnalysisResult:
+        counterpart_line = (
+            f"counterpart_name: {request.counterpart_name}\n"
+            if request.counterpart_name
+            else ""
+        )
+        user_content = (
+            f"target_country: {request.target_country.value}\n"
+            f"language: {request.language}\n"
+            f"{counterpart_line}\n"
+            f"meeting transcript:\n{masked_transcript}"
+        )
+
+        request_kwargs: dict = {
+            "model": settings.claude_model,
+            "max_tokens": 4096,
+            "system": _MEETING_SYSTEM_PROMPT,
+            "messages": [{"role": "user", "content": user_content}],
+            "output_format": AIMeetingAnalysisResult,
+        }
+        if "haiku" not in settings.claude_model:
+            request_kwargs["thinking"] = {"type": "disabled"}
+            request_kwargs["output_config"] = {"effort": settings.claude_effort}
+
+        try:
+            response = await self._client.messages.parse(**request_kwargs)
+        except Exception as exc:
+            logger.exception("Claude API call failed (model=%s)", settings.claude_model)
+            raise AIServiceUnavailableError() from exc
+
+        if getattr(response, "stop_reason", None) == "refusal":
+            raise AIServiceUnavailableError("AI가 요청 분석을 거부했습니다.")
+
+        result = response.parsed_output
+        if result is None:
+            raise AIResponseValidationError()
 
         return result
 

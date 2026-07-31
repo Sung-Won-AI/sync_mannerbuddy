@@ -3,7 +3,6 @@ from time import perf_counter
 from uuid import uuid4
 
 from app.schemas.analysis import (
-    AnalysisIssue,
     AnalysisListItem,
     AnalysisListResponse,
     EmailAnalysisRequest,
@@ -14,28 +13,8 @@ from app.core.exceptions import ResourceNotFoundError
 from app.repositories.memory_repository import repository
 from app.schemas.feedback import AnalysisActionRequest, AnalysisActionResponse
 from app.services.ai_client import get_ai_client
+from app.services.issue_resolution import resolve_and_restore_issues
 from app.services.masking_service import masking_service
-
-
-def _drop_overlapping_issues(issues: list[AnalysisIssue]) -> list[AnalysisIssue]:
-    # AI가 "문장 전체를 다시 쓰는" issue와 그 안에 포함된 단어 단위 issue(예: "pls")를
-    # 함께 반환할 때가 있다. 겹치는 채로 둘 다 하이라이트하면 프론트엔드에서 하이라이트
-    # span이 서로 안에 중첩되어 오프셋 계산이 깨지므로, 넓은 범위를 우선하고 그 안에
-    # 겹치는 좁은 issue는 버린다.
-    widest_first = sorted(
-        issues,
-        key=lambda issue: issue.end_index - issue.start_index,
-        reverse=True,
-    )
-    kept: list[AnalysisIssue] = []
-    for issue in widest_first:
-        overlaps = any(
-            issue.start_index < k.end_index and issue.end_index > k.start_index
-            for k in kept
-        )
-        if not overlaps:
-            kept.append(issue)
-    return sorted(kept, key=lambda issue: issue.start_index)
 
 
 class AnalysisService:
@@ -54,39 +33,11 @@ class AnalysisService:
             request=payload,
         )
 
-        restored_issues = []
-        for issue in result.issues:
-            restored_original = masking_service.restore(
-                issue.original,
-                masking_result.replacements,
-            )
-            # AI가 직접 센 문자 오프셋은 (특히 텍스트가 길어질수록) 어긋나기 쉬우니,
-            # AI가 그대로 베껴 적은 original 문구를 원문에서 다시 찾아 오프셋을
-            # 신뢰할 수 있게 재계산한다. 못 찾으면(패러프레이즈 등) AI 오프셋으로 폴백.
-            found_at = payload.text.find(restored_original)
-            start_index = found_at if found_at != -1 else issue.start_index
-            end_index = (
-                found_at + len(restored_original)
-                if found_at != -1
-                else issue.end_index
-            )
-
-            restored_issues.append(
-                AnalysisIssue(
-                    **{
-                        **issue.model_dump(),
-                        "original": restored_original,
-                        "suggestion": masking_service.restore(
-                            issue.suggestion,
-                            masking_result.replacements,
-                        ),
-                        "start_index": start_index,
-                        "end_index": end_index,
-                    }
-                )
-            )
-
-        restored_issues = _drop_overlapping_issues(restored_issues)
+        restored_issues = resolve_and_restore_issues(
+            original_text=payload.text,
+            replacements=masking_result.replacements,
+            issues=result.issues,
+        )
 
         response = EmailAnalysisResponse(
             analysis_id=str(uuid4()),

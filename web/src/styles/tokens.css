@@ -1,0 +1,28 @@
+/* Manner Buddy 디자인 토큰. Gmail 익스텐션 카드(frontend/src/content/styles.css)와
+   같은 팔레트(파랑 강조, 빨강 하이라이트)를 공유해 두 화면이 한 제품처럼 보이게 한다. */
+
+:root {
+  --mb-blue: #1a73e8;
+  --mb-blue-dark: #174ea6;
+  --mb-gradient-start: #5b7cfa;
+  --mb-gradient-end: #1c2f87;
+
+  --mb-red: #d93025;
+  --mb-red-bg: rgba(217, 48, 37, 0.14);
+  --mb-red-bg-hover: rgba(217, 48, 37, 0.24);
+
+  --mb-ink: #202124;
+  --mb-ink-soft: #5f6368;
+  --mb-border: #dadce0;
+  --mb-surface: #ffffff;
+  --mb-bg: #f4f6fb;
+
+  --mb-radius-lg: 16px;
+  --mb-radius-md: 10px;
+  --mb-radius-sm: 6px;
+
+  --mb-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.08);
+  --mb-shadow-popover: 0 4px 20px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
+
+  --mb-font: "Google Sans", "Noto Sans KR", "Malgun Gothic", Roboto, system-ui, sans-serif;
+}
