@@ -2,26 +2,44 @@
 // 백엔드(app)와 통신하는 서비스 워커. content script는 이 워커에만 메시지를 보내고,
 // 실제 네트워크 호출과 API_BASE_URL은 여기서만 다룬다.
 
-import type { AnalyzeEmailMessage, AnalyzeEmailResult } from "../shared/messages";
+import type {
+  AnalyzeEmailMessage,
+  AnalyzeEmailResult,
+  SaveActionMessage,
+  SaveActionResult
+} from "../shared/messages";
 import type { ApiErrorResponse, EmailAnalysisResponse } from "../shared/analysisTypes";
 
 const API_BASE_URL = "http://127.0.0.1:8000";
 
-chrome.runtime.onMessage.addListener((message: AnalyzeEmailMessage, _sender, sendResponse) => {
-  if (message?.type !== "ANALYZE_EMAIL") {
-    return undefined;
+type IncomingMessage = AnalyzeEmailMessage | SaveActionMessage;
+
+chrome.runtime.onMessage.addListener((message: IncomingMessage, _sender, sendResponse) => {
+  if (message?.type === "ANALYZE_EMAIL") {
+    analyzeEmail(message)
+      .then(sendResponse)
+      .catch((error: unknown) =>
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : "분석 요청에 실패했습니다."
+        } satisfies AnalyzeEmailResult)
+      );
+    return true; // sendResponse를 비동기로 호출하기 위해 채널을 열어둔다.
   }
 
-  analyzeEmail(message)
-    .then(sendResponse)
-    .catch((error: unknown) =>
-      sendResponse({
-        ok: false,
-        error: error instanceof Error ? error.message : "분석 요청에 실패했습니다."
-      } satisfies AnalyzeEmailResult)
-    );
+  if (message?.type === "SAVE_ACTION") {
+    saveAction(message)
+      .then(sendResponse)
+      .catch((error: unknown) =>
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : "액션 저장에 실패했습니다."
+        } satisfies SaveActionResult)
+      );
+    return true;
+  }
 
-  return true; // sendResponse를 비동기로 호출하기 위해 채널을 열어둔다.
+  return undefined;
 });
 
 async function analyzeEmail(message: AnalyzeEmailMessage): Promise<AnalyzeEmailResult> {
@@ -42,4 +60,23 @@ async function analyzeEmail(message: AnalyzeEmailMessage): Promise<AnalyzeEmailR
   }
 
   return { ok: true, data };
+}
+
+// 사용자가 하이라이트 카드에서 적용/거부/닫기 중 뭘 선택했는지는 대시보드의
+// "실제로 고친 표현" 집계와 퀴즈 출제 대상 선정에 쓰인다(app/services/quiz_service.py,
+// app/services/dashboard_service.py 참고). 실패해도 편집 흐름을 막지 않는 best-effort 호출이다.
+async function saveAction(message: SaveActionMessage): Promise<SaveActionResult> {
+  const { analysisId, issueId, action } = message.payload;
+  const response = await fetch(`${API_BASE_URL}/api/v1/analyses/${analysisId}/actions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ issue_id: issueId, action })
+  });
+
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+    return { ok: false, error: data?.error?.message ?? "액션 저장에 실패했습니다." };
+  }
+
+  return { ok: true };
 }

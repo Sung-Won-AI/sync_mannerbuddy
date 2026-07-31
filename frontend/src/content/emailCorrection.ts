@@ -189,7 +189,7 @@ async function reviewBeforeSend(composeBox: HTMLElement, sendButton: HTMLElement
       return;
     }
 
-    scanAndHighlight(composeBox, result.data.issues);
+    scanAndHighlight(composeBox, result.data.analysis_id, result.data.issues);
     window.alert(
       `발송 전 검토에서 ${result.data.issues.length}건의 매너 교정 제안을 찾았습니다.\n` +
         "하이라이트된 부분을 확인해보시고, 그대로 보내시려면 보내기를 다시 눌러주세요."
@@ -262,7 +262,7 @@ async function maybeRequestAndHighlight(composeBox: HTMLElement): Promise<void> 
     end_index: issue.end_index + reviewedUpTo
   }));
 
-  scanAndHighlight(composeBox, offsetIssues);
+  scanAndHighlight(composeBox, result.data.analysis_id, offsetIssues);
 }
 
 observeComposeBoxes();

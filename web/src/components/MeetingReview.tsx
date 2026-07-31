@@ -1,4 +1,5 @@
 import type { AnalysisScores, MeetingAnalysisResponse, TargetCountry } from "../shared/meetingTypes";
+import { CATEGORY_LABEL, COUNTRY_FLAG, COUNTRY_NAME, temperatureTone } from "../lib/constants";
 import { TranscriptLine } from "./TranscriptLine";
 
 interface MeetingReviewProps {
@@ -8,22 +9,6 @@ interface MeetingReviewProps {
   date: string;
   targetCountry: TargetCountry;
   onReset: () => void;
-}
-
-const COUNTRY_FLAG: Record<TargetCountry, string> = { US: "🇺🇸", JP: "🇯🇵", CN: "🇨🇳" };
-const COUNTRY_NAME: Record<TargetCountry, string> = { US: "미국", JP: "일본", CN: "중국" };
-
-const SCORE_LABEL: Record<keyof AnalysisScores, string> = {
-  tone: "어조",
-  taboo: "금기 표현",
-  manners: "매너·구조",
-  vocabulary: "어휘"
-};
-
-function temperatureTone(value: number): string {
-  if (value >= 75) return "cool";
-  if (value >= 50) return "warm";
-  return "hot";
 }
 
 function linesWithOffsets(transcript: string) {
@@ -70,10 +55,10 @@ export function MeetingReview({
             <span className="score-panel__primary-label">매너 온도</span>
           </div>
           <div className="score-panel__grid">
-            {(Object.keys(SCORE_LABEL) as (keyof AnalysisScores)[]).map((key) => (
+            {(Object.keys(CATEGORY_LABEL) as (keyof AnalysisScores)[]).map((key) => (
               <div className="score-panel__cell" key={key}>
                 <span className="score-panel__cell-value">{response.scores[key]}</span>
-                <span className="score-panel__cell-label">{SCORE_LABEL[key]}</span>
+                <span className="score-panel__cell-label">{CATEGORY_LABEL[key]}</span>
               </div>
             ))}
           </div>

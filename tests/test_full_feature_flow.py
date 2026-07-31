@@ -77,7 +77,13 @@ def test_quiz_is_generated_from_analysis_issue(client):
     assert quiz["generated_from_analyses"] == 1
     assert quiz["questions"]
 
-    question = quiz["questions"][0]
+    # 문제 순서가 뒤섞이므로(교정 문제 + 국가 O/X 문제 혼합) 정답 보기로 찾는다.
+    question = next(
+        q
+        for q in quiz["questions"]
+        if any(option["text"].startswith("Would it be possible") for option in q["options"])
+    )
+    assert question["type"] == "correction"
     correct_option = next(
         option
         for option in question["options"]
@@ -126,12 +132,14 @@ def test_quiz_excludes_unaccepted_issues(client):
 
     quiz = client.get("/api/v1/quizzes?limit=3").json()
 
-    # accept한 issue가 하나도 없으므로 실제 이메일 문구가 아니라 기본 폴백 문제로 대체돼야 한다.
+    # accept한 issue가 하나도 없으므로 전부 국가별 매너 O/X 문제로 채워지고,
+    # 실제 이메일 문구를 정답 보기로 쓰는 교정 문제는 하나도 없어야 한다.
     assert not any(
         option["text"].startswith("Would it be possible")
         for question in quiz["questions"]
         for option in question["options"]
     )
+    assert all(question["type"] == "culture" for question in quiz["questions"])
 
 
 def test_analysis_history(client):

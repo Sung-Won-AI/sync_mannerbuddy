@@ -1,10 +1,11 @@
-from collections import defaultdict
+from collections import Counter, defaultdict
 from statistics import mean
 
 from app.core.config import settings
 from app.repositories import repository
 from app.schemas.analysis import AnalysisScores
 from app.schemas.dashboard import (
+    CountryInsight,
     CountryUsage,
     DashboardSummary,
     FrequentIssue,
@@ -31,6 +32,7 @@ class DashboardService:
                     manners=0,
                 ),
                 country_usage=[],
+                country_insights=[],
                 frequent_issues=[],
                 fixed_issues=[],
                 score_trend=[],
@@ -49,6 +51,25 @@ class DashboardService:
                 record["overall_score"]
             )
 
+        # 국가별로 가장 자주 감지된 카테고리 하나씩 — "이번주 나의 비즈니스 매너는?"
+        # 인사이트 카드가 국가별로 실제 데이터에 기반한 코멘트를 보여줄 수 있게 한다.
+        country_category_counts: dict[str, Counter] = defaultdict(Counter)
+        for record in records:
+            for issue in record.get("issues", []):
+                country_category_counts[record["target_country"]][
+                    issue["category"]
+                ] += 1
+
+        country_insights = [
+            CountryInsight(
+                country=country,
+                top_category=str(category_counts.most_common(1)[0][0]),
+                count=category_counts.most_common(1)[0][1],
+            )
+            for country, _ in data["country_counts"].most_common()
+            if (category_counts := country_category_counts.get(country))
+        ]
+
         return DashboardSummary(
             period_days=period_days,
             total_analyses=len(records),
@@ -61,6 +82,7 @@ class DashboardService:
                 CountryUsage(country=country, count=count)
                 for country, count in data["country_counts"].most_common()
             ],
+            country_insights=country_insights,
             frequent_issues=[
                 FrequentIssue(category=str(category), count=count)
                 for category, count in data["issue_counts"].most_common(4)

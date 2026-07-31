@@ -4,7 +4,8 @@
 import { createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { CorrectionCard } from "./CorrectionCard";
-import type { AnalysisIssue } from "../shared/analysisTypes";
+import type { AnalysisIssue, SuggestionAction } from "../shared/analysisTypes";
+import type { SaveActionMessage } from "../shared/messages";
 import "./styles.css";
 
 const HIGHLIGHT_CLASS = "mb-highlight";
@@ -30,6 +31,18 @@ function closeCard(): void {
   if (!cardHost || !cardRoot) return;
   cardHost.style.display = "none";
   cardRoot.render(null);
+}
+
+// 백엔드에 적용/거부/닫기 결과를 기록한다. 실패해도(백엔드 다운 등) 편집 흐름을
+// 막지 않도록 콘솔 경고만 남기고 조용히 넘어간다.
+function sendAction(analysisId: string, issueId: string, action: SuggestionAction): void {
+  const message: SaveActionMessage = {
+    type: "SAVE_ACTION",
+    payload: { analysisId, issueId, action }
+  };
+  chrome.runtime.sendMessage(message).catch((error: unknown) => {
+    console.warn("[MannerBuddy] 액션 저장 실패:", error);
+  });
 }
 
 // 하이라이트 span을 풀어 원문 텍스트는 그대로 두고, 그 바로 뒤에 커서를 둔다.
@@ -59,7 +72,7 @@ function findSiblingSpans(anchor: HTMLElement, issue: AnalysisIssue): HTMLElemen
   );
 }
 
-function openCard(anchor: HTMLElement, issue: AnalysisIssue): void {
+function openCard(anchor: HTMLElement, analysisId: string, issue: AnalysisIssue): void {
   const { host, root } = ensureCardHost();
   const rect = anchor.getBoundingClientRect();
 
@@ -91,15 +104,20 @@ function openCard(anchor: HTMLElement, issue: AnalysisIssue): void {
           spans[0]?.replaceWith(document.createTextNode(issue.suggestion));
           spans.slice(1).forEach((span) => span.remove());
         }
+        sendAction(analysisId, issue.issue_id, "accepted");
         closeCard();
       },
       onDismiss: () => {
         findSiblingSpans(anchor, issue).forEach((span) => {
           span.replaceWith(document.createTextNode(span.textContent ?? ""));
         });
+        sendAction(analysisId, issue.issue_id, "rejected");
         closeCard();
       },
-      onClose: closeCard
+      onClose: () => {
+        sendAction(analysisId, issue.issue_id, "dismissed");
+        closeCard();
+      }
     })
   );
 }
@@ -134,7 +152,13 @@ export function clearHighlights(container: HTMLElement): void {
 
 // 한 구간을 하이라이트하면 그 뒤 텍스트 노드가 쪼개지므로, 앞쪽 오프셋에 영향을 주지 않도록
 // start_index가 큰 이슈부터(뒤에서 앞으로) 처리한다.
-function highlightRange(container: HTMLElement, startIndex: number, endIndex: number, issue: AnalysisIssue): void {
+function highlightRange(
+  container: HTMLElement,
+  analysisId: string,
+  startIndex: number,
+  endIndex: number,
+  issue: AnalysisIssue
+): void {
   let offset = 0;
   for (const textNode of collectTextNodes(container)) {
     const nodeStart = offset;
@@ -156,7 +180,7 @@ function highlightRange(container: HTMLElement, startIndex: number, endIndex: nu
     span.dataset.mbId = issue.issue_id;
     span.addEventListener("click", (event) => {
       event.stopPropagation();
-      openCard(span, issue);
+      openCard(span, analysisId, issue);
     });
 
     range.surroundContents(span);
@@ -168,12 +192,12 @@ function highlightRange(container: HTMLElement, startIndex: number, endIndex: nu
   }
 }
 
-export function scanAndHighlight(container: HTMLElement, issues: AnalysisIssue[]): void {
+export function scanAndHighlight(container: HTMLElement, analysisId: string, issues: AnalysisIssue[]): void {
   clearHighlights(container);
   if (issues.length === 0) return;
 
   const byStartDescending = [...issues].sort((a, b) => b.start_index - a.start_index);
   for (const issue of byStartDescending) {
-    highlightRange(container, issue.start_index, issue.end_index, issue);
+    highlightRange(container, analysisId, issue.start_index, issue.end_index, issue);
   }
 }

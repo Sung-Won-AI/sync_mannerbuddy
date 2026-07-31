@@ -8,6 +8,7 @@ export type IssueSeverity = "low" | "medium" | "high";
 // "insert": 인사말/마무리처럼 원문에 없는 걸 새로 추가해야 하는 경우 — suggestion은
 // "무엇을 넣으면 좋을지"에 대한 권고일 뿐, 그대로 삽입할 문장이 아니다.
 export type IssueFixType = "replace" | "insert";
+export type SuggestionAction = "accepted" | "rejected" | "copied" | "dismissed";
 
 export interface AnalysisIssue {
   issue_id: string;

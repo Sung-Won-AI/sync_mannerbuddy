@@ -15,6 +15,7 @@ from app.schemas.analysis import (
     EmailAnalysisRequest,
 )
 from app.schemas.meeting import AIMeetingAnalysisResult, MeetingAnalysisRequest
+from app.schemas.quiz import AIQuizGenerationResult, CorrectionDistractorSet, CultureQuizItem
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,15 @@ class BaseAIClient(ABC):
         masked_transcript: str,
         request: MeetingAnalysisRequest,
     ) -> AIMeetingAnalysisResult:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def generate_quiz_content(
+        self,
+        *,
+        correction_sources: list[dict],
+        culture_countries: list[str],
+    ) -> AIQuizGenerationResult:
         raise NotImplementedError
 
 
@@ -167,6 +177,41 @@ class MockAIClient(BaseAIClient):
                 "담당자와 완료 기한을 다시 확인합니다.",
                 "후속 이메일에서 결정 사항을 정리합니다.",
             ],
+        )
+
+    async def generate_quiz_content(
+        self,
+        *,
+        correction_sources: list[dict],
+        culture_countries: list[str],
+    ) -> AIQuizGenerationResult:
+        correction_sets = [
+            CorrectionDistractorSet(
+                key=src["key"],
+                # suggestion과 같은 접두어를 공유하면 "정답 보기 찾기"가 모호해지니
+                # (여러 옵션이 같은 문구로 시작) original을 재료로 확실히 다른 문구를 만든다.
+                distractors=[
+                    f"[Mock distractor A] {src['original']}",
+                    f"[Mock distractor B] {src['original']}",
+                ],
+            )
+            for src in correction_sources
+        ]
+        culture_items = [
+            CultureQuizItem(
+                key=f"culture_{index}",
+                country=country,
+                true_statement=f"Mock true statement about {country} business manners.",
+                false_statements=[
+                    f"Mock false statement A about {country} business manners.",
+                    f"Mock false statement B about {country} business manners.",
+                ],
+            )
+            for index, country in enumerate(culture_countries)
+        ]
+        return AIQuizGenerationResult(
+            correction_distractor_sets=correction_sets,
+            culture_items=culture_items,
         )
 
 
@@ -342,6 +387,39 @@ key_points에는 회의에서 실제로 논의된 핵심 내용을 2~4개, actio
 회의 후 실행해야 할 후속 조치를 1~3개 한국어로 정리하세요."""
 
 
+_QUIZ_SYSTEM_PROMPT = """당신은 국제 비즈니스 매너 학습 퀴즈의 오답 보기를 만드는 출제자입니다.
+실제 조언이 아니라 퀴즈용 콘텐츠를 만드는 것이므로, 아래 두 섹션의 지시를 정확히 따르세요.
+입력에 두 섹션 중 하나만 있을 수도 있습니다 — 있는 섹션만 채우고, 없는 섹션은 빈 배열로 반환하세요.
+
+[표현 교정 문제의 오답 보기]
+입력으로 주어지는 각 항목은 사용자가 실제로 썼던 부적절한 문장(original)과, 이미 검증된
+올바른 수정 문장(suggestion)입니다. suggestion과 나란히 놓았을 때 학습자가 헷갈릴 만한,
+그럴듯하지만 명백히 틀린 수정 문장을 항목당 정확히 2개씩 만드세요.
+- "그럴듯한 오답"의 예: 문제를 절반만 고침, 다른 나라 매너 기준을 적용함, 어투는
+  부드러워졌지만 여전히 부적절한 표현, 문법은 맞지만 문화적으로 여전히 무례한 표현.
+- suggestion과 같은 언어로, 비슷한 길이로 작성하세요. original을 그대로 베끼거나
+  명백히 이상한 문장은 안 됩니다.
+- fix_type 규칙(중요): suggestion과 정확히 같은 형태로 오답을 만드세요. fix_type이
+  "replace"면 suggestion은 그 자리에 바로 넣을 수 있는 완성된 문장이므로, 오답도
+  그렇게 바로 넣을 수 있는 완성된 문장이어야 합니다. fix_type이 "insert"면
+  suggestion은 "무엇을 보완하면 좋은지"에 대한 한국어 권고문(예: "~을 추가하세요")
+  이므로, 오답도 형식과 말투가 똑같은 권고문이어야 합니다. 형식이 정답과 다른
+  오답(예: 정답만 권고문이고 오답은 실제 문장인 경우)은 형태만으로 정답이 티가
+  나므로 절대 만들지 마세요.
+- key 필드에는 입력으로 받은 key 값을 그대로 반환하세요.
+
+[국가별 비즈니스 매너 O/X 문제]
+입력으로 주어지는 각 국가마다, 그 나라의 실제 비즈니스 문화에 대한 참인 문장(true_statement)
+1개와, 그럴듯하지만 틀린 문장(false_statements) 정확히 2개를 만드세요.
+- 거짓 문장은 그 나라에 대한 흔한 오해, 다른 나라 매너와 착각한 것, 절반만 맞는 진술처럼
+  실제로 헷갈릴 만한 내용이어야 합니다. 터무니없이 틀린 문장은 안 됩니다.
+- 같은 국가에 대해 여러 항목이 주어져도 매번 다른 내용을 다루세요 (인사/호칭/일정/의사결정
+  방식/피드백 문화 등 서로 다른 주제를 골고루 사용).
+- 세 문장 모두 한 문장으로, 서로 비슷한 길이와 형식으로 작성하세요.
+- 모든 문장은 한국어로 작성하세요.
+- key 필드에는 입력으로 받은 key 값을 그대로 반환하세요."""
+
+
 class ClaudeAIClient(BaseAIClient):
     def __init__(self) -> None:
         if not settings.claude_api_key:
@@ -427,6 +505,60 @@ class ClaudeAIClient(BaseAIClient):
             "system": _MEETING_SYSTEM_PROMPT,
             "messages": [{"role": "user", "content": user_content}],
             "output_format": AIMeetingAnalysisResult,
+        }
+        if "haiku" not in settings.claude_model:
+            request_kwargs["thinking"] = {"type": "disabled"}
+            request_kwargs["output_config"] = {"effort": settings.claude_effort}
+
+        try:
+            response = await self._client.messages.parse(**request_kwargs)
+        except Exception as exc:
+            logger.exception("Claude API call failed (model=%s)", settings.claude_model)
+            raise AIServiceUnavailableError() from exc
+
+        if getattr(response, "stop_reason", None) == "refusal":
+            raise AIServiceUnavailableError("AI가 요청 분석을 거부했습니다.")
+
+        result = response.parsed_output
+        if result is None:
+            raise AIResponseValidationError()
+
+        return result
+
+    async def generate_quiz_content(
+        self,
+        *,
+        correction_sources: list[dict],
+        culture_countries: list[str],
+    ) -> AIQuizGenerationResult:
+        sections: list[str] = []
+        if correction_sources:
+            lines = [
+                (
+                    f"- key: {src['key']}\n"
+                    f"  target_country: {src['target_country']}\n"
+                    f"  fix_type: {src['fix_type']}\n"
+                    f"  original: {src['original']}\n"
+                    f"  suggestion: {src['suggestion']}"
+                )
+                for src in correction_sources
+            ]
+            sections.append("[표현 교정 문제 입력]\n" + "\n".join(lines))
+        if culture_countries:
+            lines = [
+                f"- key: culture_{index}\n  country: {country}"
+                for index, country in enumerate(culture_countries)
+            ]
+            sections.append("[국가별 비즈니스 매너 O/X 문제 입력]\n" + "\n".join(lines))
+
+        user_content = "\n\n".join(sections)
+
+        request_kwargs: dict = {
+            "model": settings.claude_model,
+            "max_tokens": 4096,
+            "system": _QUIZ_SYSTEM_PROMPT,
+            "messages": [{"role": "user", "content": user_content}],
+            "output_format": AIQuizGenerationResult,
         }
         if "haiku" not in settings.claude_model:
             request_kwargs["thinking"] = {"type": "disabled"}

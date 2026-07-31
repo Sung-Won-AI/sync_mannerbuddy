@@ -241,7 +241,7 @@ textarea {
 }
 
 .score-panel__temp--warm {
-  color: #b06000;
+  color: var(--mb-amber);
 }
 
 .score-panel__temp--hot {
@@ -440,8 +440,8 @@ textarea {
 }
 
 .tip-card__severity--medium {
-  background: #fef7e0;
-  color: #b06000;
+  background: var(--mb-amber-bg);
+  color: var(--mb-amber);
 }
 
 .tip-card__severity--high {
@@ -520,6 +520,653 @@ textarea {
   color: var(--mb-ink-soft);
 }
 
+/* ---------- 내비게이션 ---------- */
+
+.app-root {
+  min-height: 100vh;
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 16px 24px;
+  background: var(--mb-surface);
+  border-bottom: 1px solid var(--mb-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.app-nav__brand {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--mb-blue-dark);
+}
+
+.app-nav__items {
+  display: flex;
+  gap: 4px;
+}
+
+.app-nav__item {
+  border: none;
+  background: transparent;
+  color: var(--mb-ink-soft);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--mb-radius-sm);
+  cursor: pointer;
+}
+
+.app-nav__item:hover {
+  background: var(--mb-bg);
+}
+
+.app-nav__item--active {
+  background: var(--mb-accent-soft, #e8f0fe);
+  color: var(--mb-blue-dark);
+}
+
+/* ---------- 대시보드 ---------- */
+
+.dashboard-page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 40px 24px 96px;
+}
+
+.dashboard-page--loading {
+  color: var(--mb-ink-soft);
+  font-size: 14px;
+  padding-top: 120px;
+  text-align: center;
+}
+
+.dashboard-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.dashboard-page__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--mb-blue);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.dashboard-page__title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.dashboard-page__period {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  background: var(--mb-surface);
+  border: 1px solid var(--mb-border);
+  border-radius: var(--mb-radius-sm);
+  padding: 3px;
+}
+
+.dashboard-page__period-btn {
+  border: none;
+  background: transparent;
+  color: var(--mb-ink-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.dashboard-page__period-btn--active {
+  background: var(--mb-blue);
+  color: #fff;
+}
+
+.dashboard-page__empty {
+  font-size: 14px;
+  color: var(--mb-ink-soft);
+  background: var(--mb-surface);
+  border: 1px dashed var(--mb-border);
+  border-radius: var(--mb-radius-lg);
+  padding: 32px;
+  text-align: center;
+}
+
+.dashboard-page__section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--mb-ink-soft);
+  margin: 32px 0 12px;
+}
+
+.dashboard-page__bottom {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 20px;
+  margin-top: 32px;
+}
+
+.dashboard-card {
+  background: var(--mb-surface);
+  border-radius: var(--mb-radius-lg);
+  box-shadow: var(--mb-shadow-card);
+  padding: 24px;
+}
+
+.dashboard-card__title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 18px;
+}
+
+.dashboard-card--cta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.dashboard-card__cta-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.dashboard-card--cta .dashboard-card__title {
+  margin: 0;
+}
+
+.dashboard-card__cta-body {
+  font-size: 13px;
+  color: var(--mb-ink-soft);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.dashboard-card__cta-btn {
+  margin-top: auto;
+  border: none;
+  background: var(--mb-blue);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: var(--mb-radius-sm);
+  cursor: pointer;
+}
+
+.dashboard-card__cta-btn:hover {
+  background: var(--mb-blue-dark);
+}
+
+/* ---------- 사용현황 KPI ---------- */
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.stat-tile {
+  background: var(--mb-surface);
+  border-radius: var(--mb-radius-lg);
+  box-shadow: var(--mb-shadow-card);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-tile__icon {
+  font-size: 20px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--mb-bg);
+  margin-bottom: 4px;
+}
+
+.stat-tile__value {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.stat-tile__label {
+  font-size: 12.5px;
+  color: var(--mb-ink-soft);
+}
+
+/* ---------- 국가별 인사이트 ---------- */
+
+.insight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.insight-card--compact {
+  padding: 18px 22px;
+}
+
+.insight-card--compact .insight-card__flag {
+  font-size: 28px;
+}
+
+.insight-card--compact .insight-card__title {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.insight-card--compact .insight-card__body {
+  font-size: 13px;
+}
+
+/* ---------- 매너 온도 미터 ---------- */
+
+.meter-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.meter-card__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--mb-ink-soft);
+  margin-bottom: 10px;
+}
+
+.meter-card__value {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 14px;
+  font-variant-numeric: proportional-nums;
+}
+
+.meter-card__value--cool {
+  color: var(--mb-blue);
+}
+
+.meter-card__value--warm {
+  color: var(--mb-amber);
+}
+
+.meter-card__value--hot {
+  color: var(--mb-red);
+}
+
+.meter-card__track {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--mb-track);
+  overflow: hidden;
+}
+
+.meter-card__fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.meter-card__fill--cool {
+  background: var(--mb-blue);
+}
+
+.meter-card__fill--warm {
+  background: var(--mb-amber);
+}
+
+.meter-card__fill--hot {
+  background: var(--mb-red);
+}
+
+.meter-card__trend {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.meter-card__trend-label {
+  font-size: 11px;
+  color: var(--mb-ink-faint, var(--mb-ink-soft));
+}
+
+.trend-sparkline {
+  width: 100%;
+  height: 44px;
+  display: block;
+}
+
+.trend-sparkline__line {
+  fill: none;
+  stroke: var(--mb-blue);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.trend-sparkline__dot {
+  fill: var(--mb-blue);
+  stroke: var(--mb-surface);
+  stroke-width: 2;
+}
+
+/* ---------- 카테고리 막대 ---------- */
+
+.category-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.category-bars__empty {
+  font-size: 13px;
+  color: var(--mb-ink-soft);
+}
+
+.category-bars__legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.category-bars__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--mb-ink-soft);
+}
+
+.category-bars__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.category-bars__dot--fixed {
+  background: var(--mb-blue);
+}
+
+.category-bars__dot--pending {
+  background: var(--mb-track);
+  border: 1px solid var(--mb-border);
+}
+
+.category-bars__row {
+  display: grid;
+  grid-template-columns: 64px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.category-bars__label {
+  font-size: 12.5px;
+  color: var(--mb-ink-soft);
+}
+
+.category-bars__track {
+  height: 14px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.category-bars__total {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--mb-track);
+  border: 1px solid var(--mb-border);
+  overflow: hidden;
+  min-width: 14px;
+}
+
+.category-bars__fixed {
+  height: 100%;
+  background: var(--mb-blue);
+  border-radius: 999px 0 0 999px;
+}
+
+.category-bars__value {
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 준비중 ---------- */
+
+.placeholder-card {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 64px 24px;
+  color: var(--mb-ink-soft);
+  font-size: 14px;
+}
+
+.placeholder-card__icon {
+  display: block;
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+/* ---------- 퀴즈 ---------- */
+
+.quiz-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 48px 20px 96px;
+}
+
+.quiz-page--loading {
+  text-align: center;
+  color: var(--mb-ink-soft);
+  font-size: 14px;
+  padding-top: 120px;
+}
+
+.quiz-page__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.quiz-page__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--mb-blue);
+  text-transform: uppercase;
+}
+
+.quiz-page__progress {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--mb-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.quiz-card {
+  background: var(--mb-surface);
+  border-radius: var(--mb-radius-lg);
+  box-shadow: var(--mb-shadow-card);
+  padding: 28px;
+}
+
+.quiz-card__category {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--mb-ink-soft);
+  background: var(--mb-bg);
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+
+.quiz-card__prompt {
+  font-size: 16px;
+  line-height: 1.6;
+  white-space: pre-line;
+  margin: 0 0 20px;
+}
+
+.quiz-card__options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quiz-card__option {
+  text-align: left;
+  border: 1px solid var(--mb-border);
+  background: var(--mb-surface);
+  color: var(--mb-ink);
+  border-radius: var(--mb-radius-sm);
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.quiz-card__option:hover:not(:disabled) {
+  border-color: var(--mb-blue);
+  background: var(--mb-bg);
+}
+
+.quiz-card__option:disabled {
+  cursor: default;
+}
+
+.quiz-card__option--correct {
+  border-color: var(--mb-green);
+  background: var(--mb-green-bg);
+  color: var(--mb-green);
+  font-weight: 600;
+}
+
+.quiz-card__option--muted {
+  color: var(--mb-ink-faint, var(--mb-ink-soft));
+  opacity: 0.6;
+}
+
+.quiz-card__result {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border-radius: var(--mb-radius-md);
+}
+
+.quiz-card__result--correct {
+  background: var(--mb-green-bg);
+}
+
+.quiz-card__result--wrong {
+  background: var(--mb-red-bg);
+}
+
+.quiz-card__result-label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.quiz-card__result--correct .quiz-card__result-label {
+  color: var(--mb-green);
+}
+
+.quiz-card__result--wrong .quiz-card__result-label {
+  color: var(--mb-red);
+}
+
+.quiz-card__result-explanation {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--mb-ink-soft);
+  margin: 0 0 14px;
+}
+
+.quiz-card__next {
+  border: none;
+  background: var(--mb-blue);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: var(--mb-radius-sm);
+  cursor: pointer;
+}
+
+.quiz-card__next:hover {
+  background: var(--mb-blue-dark);
+}
+
+.quiz-summary {
+  background: var(--mb-surface);
+  border-radius: var(--mb-radius-lg);
+  box-shadow: var(--mb-shadow-card);
+  padding: 40px 32px;
+  text-align: center;
+}
+
+.quiz-summary__eyebrow {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--mb-blue);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.quiz-summary__title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+
+.quiz-summary__score {
+  font-size: 14px;
+  color: var(--mb-ink-soft);
+  margin: 0 0 24px;
+}
+
+.quiz-summary__restart {
+  border: none;
+  background: var(--mb-blue);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 11px 22px;
+  border-radius: var(--mb-radius-sm);
+  cursor: pointer;
+}
+
+.quiz-summary__restart:hover {
+  background: var(--mb-blue-dark);
+}
+
 /* ---------- 반응형 ---------- */
 
 @media (max-width: 720px) {
@@ -537,6 +1184,27 @@ textarea {
 
   .meeting-review__footer {
     grid-template-columns: 1fr;
+  }
+
+  .app-nav {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .dashboard-page__header {
+    flex-direction: column;
+  }
+
+  .stat-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-page__bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .category-bars__row {
+    grid-template-columns: 56px 1fr 32px;
   }
 
   .tip-card {

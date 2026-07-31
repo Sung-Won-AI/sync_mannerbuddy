@@ -11,11 +11,20 @@
   --mb-red-bg: rgba(217, 48, 37, 0.14);
   --mb-red-bg-hover: rgba(217, 48, 37, 0.24);
 
+  /* 매너 온도 등급(양호/보통/위험)의 "보통" 상태색. score-panel의 temp--warm과 동일. */
+  --mb-amber: #b06000;
+  --mb-amber-bg: #fef7e0;
+
+  /* 퀴즈 정답 상태색. 오답은 이미 "문제"를 뜻하는 --mb-red를 그대로 재사용한다. */
+  --mb-green: #1e8a47;
+  --mb-green-bg: #e9f8ec;
+
   --mb-ink: #202124;
   --mb-ink-soft: #5f6368;
   --mb-border: #dadce0;
   --mb-surface: #ffffff;
   --mb-bg: #f4f6fb;
+  --mb-track: #eef1f7;
 
   --mb-radius-lg: 16px;
   --mb-radius-md: 10px;

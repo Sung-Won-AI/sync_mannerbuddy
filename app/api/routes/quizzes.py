@@ -14,7 +14,7 @@ router = APIRouter()
 async def generate_quizzes(
     limit: int = Query(default=5, ge=1, le=10),
 ) -> QuizSetResponse:
-    return quiz_service.generate(limit)
+    return await quiz_service.generate(limit)
 
 
 @router.post(
