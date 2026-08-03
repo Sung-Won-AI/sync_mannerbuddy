@@ -13,6 +13,7 @@ from app.schemas.analysis import (
     AnalysisIssue,
     AnalysisScores,
     EmailAnalysisRequest,
+    IssueFixType,
 )
 from app.schemas.meeting import AIMeetingAnalysisResult, MeetingAnalysisRequest
 from app.schemas.quiz import AIQuizGenerationResult, CorrectionDistractorSet, CultureQuizItem
@@ -226,7 +227,11 @@ _SYSTEM_PROMPT = """당신은 국제 비즈니스 이메일의 문화적 매너�
 
 국가별 참고 기준:
 - US: 명확하고 직접적인 표현은 무례하지 않지만, 요청에는 "please"/"would you
-  mind" 같은 완충 표현을 곁들이는 편이 좋다. 과도한 격식은 오히려 어색하다.
+  mind" 같은 완충 표현을 곁들이는 편이 좋다. 도입부 인사말은 "Dear [이름],"이
+  가장 표준적이고 안전한 선택이고 "Hi [이름],"/"Hello [이름],"도 무난하다 —
+  "Dear"가 과도하게 격식 있거나 차갑다는 이유로 지적하지 마라. "과도한 격식은
+  어색하다"는 기준은 문장 중간의 불필요한 존칭 남발이나 지나치게 딱딱한 어휘
+  선택에만 적용하고, 인사말 자체의 격식 수준(Dear vs Hi)은 문제 삼지 마라.
 1. 무례한 어조(Rude Tone): 명령조, 공격적인 표현, 비난하는 말투, ALL CAPS, 과도한 느낌표(!!!), 무례한 단어 사용은 피한다.
 
 2. 공손한 어조(Polite Tone): Please, Thank you, I appreciate, Could you, Would you mind 등의 표현을 적절히 사용하여 요청을 정중하게 전달한다.
@@ -267,7 +272,6 @@ _SYSTEM_PROMPT = """당신은 국제 비즈니스 이메일의 문화적 매너�
 
 20. 마무리 예절(Professional Closing): Best regards, Kind regards, Sincerely, Thank you 등의 적절한 마무리 인사와 서명을 포함한다.
 
-
 - JP: 직접적인 기한 제시나 요구는 강압적으로 들릴 수 있다. 상대에게 선택권을
   주는 간접 표현("もし差し支えなければ" 류), 사전 양해, 겸양 표현을 선호한다.
 1.메일 본문 최상단에 [회사명 + 부서명 + 성함 + 様(상)] 순서로 명확히 적기
@@ -296,6 +300,21 @@ revised_text에 원문 언어 그대로 넣기 위한 참고용 예시일 뿐입
 reason과 summary에는 그 예시 문구를 절대 그대로 옮기지 말고, 한국어로
 풀어서 설명하세요.
 
+issue 범위 제한(매우 중요, 예외 없음): 하나의 issue가 가리키는 original은
+마침표/느낌표/물음표로 끝나는 문장 "하나"를 절대 넘을 수 없습니다. 두 문장이
+같은 주제(예: 같은 요청, 같은 협박조 어투)로 논리적으로 이어져 보이더라도,
+그 이유로 두 문장을 하나의 original/issue로 묶지 마세요 — 반드시 문장마다
+별도의 issue로 쪼개서 반환하세요. 단어/구 하나만 문제라면 그 단어/구만
+가리키는 게 더 좋습니다(문장 전체를 가리킬 필요 없음).
+나쁜 예(금지 — 두 문장을 하나로 묶음): 원문 "Your quotation is too expensive.
+You should reduce the price by at least 20%, or we will find another
+supplier." 전체를 original 하나로 잡고 4문장짜리 suggestion 하나로 다시 씀.
+좋은 예: 위 원문을 두 개의 issue로 나눔 — issue1 original="Your quotation is
+too expensive." (suggestion 1문장), issue2 original="You should reduce the
+price by at least 20%, or we will find another supplier." (suggestion 1문장).
+이렇게 쪼개면 각 suggestion이 1~2문장으로 짧아져 카드 UI가 늘어나 액션
+버튼이 화면 밖으로 잘리는 문제도 함께 방지됩니다.
+
 fix_type 규칙(중요): 각 issue는 반드시 아래 둘 중 하나로 fix_type을 지정하세요.
 - "replace": original 위치의 문구를 suggestion으로 그대로 바꿔치기하면 되는 경우.
   이때 suggestion은 반드시 original과 같은 언어로 쓰인, 그 자리에 바로 넣을 수
@@ -306,11 +325,32 @@ fix_type 규칙(중요): 각 issue는 반드시 아래 둘 중 하나로 fix_typ
   가리켜야 합니다. original을 문장의 일부(예: 앞부분 몇 단어)로 좁게 잡고
   suggestion은 문장 전체를 다시 쓰면, 교체 후 나머지 원문 조각이 그대로 남아
   같은 내용이 중복되므로 절대 이렇게 하지 마세요.
+  suggestion은 절대로 사용자에게 무엇을 하라고 지시하는 문장이면 안 됩니다.
+  suggestion은 프론트엔드가 original 자리에 그대로 끼워 넣는 "실제 텍스트"이지,
+  사람이 읽고 따라야 할 안내문이 아닙니다.
+  나쁜 예(금지): original="Hey,", suggestion="Remove this line and continue
+  directly with the main request." — 이렇게 지시문을 넣으면 그 지시문 자체가
+  이메일 본문에 그대로 삽입되어 버립니다.
+  톤/격식이 안 맞는 표현(인사말 포함)은 원칙적으로 삭제가 아니라 어울리는 대체
+  표현으로 교체하세요 — 예: original="Hey,", suggestion="Hi Smith," (또는
+  "Hello Smith,"). suggestion을 빈 문자열("")로 반환하는 것은 그 문구 자체가
+  중복되거나 완전히 불필요해서 자리에 아무것도 넣을 필요가 없는 경우에만 쓰는
+  최후의 수단입니다 — "이 문구는 어차피 삭제할 수 있으니까"라는 이유만으로
+  빈 문자열을 고르지 말고, 항상 먼저 적절한 대체 표현이 있는지 생각하세요.
 - "insert": 인사말, 마무리 인사, 서명처럼 원문에 아예 없는 것을 새로 추가해야
   하는 경우. 이때는 실제로 넣을 문장을 만들어 그 자리에 끼워 넣을 수 없으므로
   suggestion은 "무엇을 추가하면 좋은지"에 대한 권고 설명으로 작성하세요.
-  original/start_index/end_index는 그 추가가 필요한 위치 근처의 실제 원문
-  일부(예: 마지막 문장)를 가리키면 됩니다."""
+  original/start_index/end_index는 삽입이 필요한 위치 "근처의 아무 글자"가
+  아니라, 그 위치를 표시하는 데 쓰이는 실제 하이라이트 대상이므로 반드시 원문에
+  실제로 존재하는 완전한 한 단어 또는 한 줄 전체를 가리켜야 합니다. 단어를
+  중간에서 잘라서 가리키는 것은 절대 금지입니다.
+  나쁜 예(금지): 원문이 "Regards,\\nSeoyun Yang"일 때 original="ds," 또는
+  original="Seoy" — 단어 중간을 자른 조각을 가리키면 안 됩니다.
+  좋은 예: 마무리 인사 뒤에 정식 서명을 추가하라고 권고하려면 original="Seoyun
+  Yang"(서명 줄 전체)처럼 온전한 줄을 가리키세요. 인사말 앞에 도입 문장을
+  추가하라고 권고하려면 그 인사말 줄 전체(예: original="Dear Mr. Tanaka,")를
+  가리키세요.
+"""
 
 _REALTIME_MODE_INSTRUCTION = """지금은 "실시간 문장 교정" 모드입니다. 사용자가 방금 막 작성한
 새 문장(구간)만 전달받았고, 이메일 전체를 아직 볼 수 없습니다. 따라서:
@@ -318,7 +358,11 @@ _REALTIME_MODE_INSTRUCTION = """지금은 "실시간 문장 교정" 모드입니
   인사, 서명처럼 이메일 전체 구조를 봐야 판단 가능한 항목)는 이 모드에서는 알 수
   없으니 issues에 절대 포함하지 마세요 — 그건 나중에 "발송 전 검토"에서 다룹니다.
 - issues는 전부 fix_type "replace"여야 합니다 — 지금 이 구간에 바로 넣을 수 있는
-  완성된 대체 문장을 suggestion에 제시하세요.
+  완성된 대체 문장을 suggestion에 제시하세요. 톤이 안 맞는 인사말(예: "Hey,")도
+  삭제하지 말고 "Hi Smith," 같은 어울리는 대체 표현으로 바꾸세요. 이 모드에서는
+  "insert"를 쓸 수 없으니, 정말로 대체할 표현 없이 그 문구 자체를 통째로 없애야만
+  하는 경우(중복 표현 등)에 한해서만 suggestion을 빈 문자열("")로 반환하세요.
+  (fix_type 규칙의 "replace" 예시 참고)
 - scores.manners는 이 모드에서 평가하지 않으니 100으로 고정해서 반환하세요."""
 
 _BEFORE_SEND_MODE_INSTRUCTION = """지금은 "발송 전 전체 검토" 모드입니다. 이메일 전체가
@@ -327,11 +371,11 @@ _BEFORE_SEND_MODE_INSTRUCTION = """지금은 "발송 전 전체 검토" 모드�
 - vocabulary/tone/taboo는 아주 명백하게 남아있는 문제가 아니라면 다시 지적하지
   마세요. 이 모드의 핵심은 그게 아닙니다.
 - manners 카테고리(인사말, 자기소개, 완충 표현, 마무리 인사, 서명 등 이메일
-  전체 구조·예절)에 집중해서 이메일 전체를 검토하세요.
+전체 구조·예절)에 집중해서 이메일 전체를 검토하세요.
+- us 메일 구조: [인사말] Dear 이름, To whom it may concern [도입] I hope you are doing well [마무리] Best regards 혹은 Sincerely+발신자 이름
 - manners 관련 issues는 fix_type을 반드시 "insert"로 지정하고, suggestion에는
   실제로 넣을 문장이 아니라 "무엇을 보완하면 좋은지"에 대한 한국어 권고를
-  쓰세요 (예: "이메일 끝에 감사 인사와 서명을 추가하세요")."""
-
+  쓰세요 (예: "이메일 끝에 감사 인사와 서명을 추가하세요"). "insert" type에서는 "원문 수정하기" 버튼을 눌러도 하이라이트된 문장을 바꾸지 않습니다."""
 
 _MEETING_SYSTEM_PROMPT = """당신은 국제 비즈니스 화상회의의 문화적 매너를 검토하는 전문 코치입니다.
 
@@ -380,12 +424,13 @@ fix_type 규칙(중요): 각 issue는 반드시 아래 둘 중 하나로 fix_typ
   original의 범위는 반드시 suggestion이 다시 쓴 범위와 정확히 일치해야 합니다.
 - "insert": 인사말, 자기소개, 마무리 인사처럼 아예 없었던 것을 추가했어야 하는
   경우. suggestion은 "무엇을 보완하면 좋은지"에 대한 권고 설명으로 작성하세요.
-  original/start_index/end_index는 그 추가가 필요한 위치 근처의 실제 발언
-  일부를 가리키면 됩니다.
+  original/start_index/end_index는 그 추가가 필요한 위치를 표시하는 실제
+  하이라이트 대상이므로, 대화록에 실제로 존재하는 완전한 한 단어 또는 한 발언
+  전체를 가리켜야 합니다. 단어를 중간에서 잘라 가리키는 것은 절대 금지입니다
+  (예: "Thanks"를 가리켜야 할 자리에 "nks"만 가리키면 안 됩니다).
 
 key_points에는 회의에서 실제로 논의된 핵심 내용을 2~4개, action_items에는
 회의 후 실행해야 할 후속 조치를 1~3개 한국어로 정리하세요."""
-
 
 _QUIZ_SYSTEM_PROMPT = """당신은 국제 비즈니스 매너 학습 퀴즈의 오답 보기를 만드는 출제자입니다.
 실제 조언이 아니라 퀴즈용 콘텐츠를 만드는 것이므로, 아래 두 섹션의 지시를 정확히 따르세요.
@@ -418,6 +463,7 @@ _QUIZ_SYSTEM_PROMPT = """당신은 국제 비즈니스 매너 학습 퀴즈의 �
 - 세 문장 모두 한 문장으로, 서로 비슷한 길이와 형식으로 작성하세요.
 - 모든 문장은 한국어로 작성하세요.
 - key 필드에는 입력으로 받은 key 값을 그대로 반환하세요."""
+
 
 
 class ClaudeAIClient(BaseAIClient):
@@ -478,6 +524,12 @@ class ClaudeAIClient(BaseAIClient):
             result.issues = [issue for issue in result.issues if issue.category != AnalysisCategory.MANNERS]
         else:
             result.issues = [issue for issue in result.issues if issue.category == AnalysisCategory.MANNERS]
+            # manners issue는 항상 "무엇을 보완하면 좋은지"에 대한 권고문이지, 그 자리에 바로
+            # 끼워 넣을 완성 문장이 아니다. suggestion이 영어 문장처럼 보이면 모델이 fix_type을
+            # "replace"로 착각해 반환할 때가 있는데, 그러면 프론트엔드가 그 권고문을 원문에
+            # 그대로 삽입해버리므로 발송 전 검토 결과는 여기서 전부 "insert"로 강제한다.
+            for issue in result.issues:
+                issue.fix_type = IssueFixType.INSERT
 
         return result
 

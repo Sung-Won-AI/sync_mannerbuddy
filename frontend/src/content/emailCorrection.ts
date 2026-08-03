@@ -6,7 +6,7 @@
 //   1) 1.5초 동안 추가 입력이 없을 때 (타이핑 중단)
 //   2) 문장이 마침표/물음표/느낌표로 끝났을 때 (문장 완성) — 이 경우 1.5초를 기다리지 않고 바로 분석한다.
 
-import { scanAndHighlight, clearHighlights } from "./highlightEngine";
+import { scanAndHighlight, clearHighlights, getPlainText } from "./highlightEngine";
 import type { EmailAnalysisRequest, TargetCountry } from "../shared/analysisTypes";
 import type { AnalyzeEmailMessage, AnalyzeEmailResult } from "../shared/messages";
 
@@ -71,7 +71,7 @@ function attachCorrectionListener(composeBox: HTMLElement): void {
 
     window.clearTimeout(idleTimers.get(composeBox));
 
-    if (SENTENCE_END_PATTERN.test(composeBox.innerText)) {
+    if (SENTENCE_END_PATTERN.test(getPlainText(composeBox))) {
       void maybeRequestAndHighlight(composeBox);
       return;
     }
@@ -138,7 +138,7 @@ function attachSendInterception(composeBox: HTMLElement): void {
         if ((reviewModes.get(composeBox) ?? "realtime") !== "before-send") return;
         if (hasReviewedBeforeSend.has(composeBox)) return; // 이미 한 번 검토했으면 더 막지 않는다.
 
-        const fullText = composeBox.innerText.trim();
+        const fullText = getPlainText(composeBox).trim();
         if (fullText.length < MIN_TEXT_LENGTH) return; // 내용이 거의 없으면 검토 없이 그대로 보낸다.
 
         event.preventDefault();
@@ -155,7 +155,7 @@ function attachSendInterception(composeBox: HTMLElement): void {
 }
 
 async function reviewBeforeSend(composeBox: HTMLElement, sendButton: HTMLElement): Promise<void> {
-  const fullText = composeBox.innerText.trim();
+  const fullText = getPlainText(composeBox).trim();
   hasReviewedBeforeSend.add(composeBox); // 결과와 무관하게 이 발송 시도에서 검토 기회를 소진한다.
 
   const status = document.createElement("span");
@@ -200,7 +200,7 @@ async function reviewBeforeSend(composeBox: HTMLElement, sendButton: HTMLElement
 }
 
 async function maybeRequestAndHighlight(composeBox: HTMLElement): Promise<void> {
-  const fullText = composeBox.innerText;
+  const fullText = getPlainText(composeBox);
 
   if (fullText.trim().length < MIN_TEXT_LENGTH) {
     reviewedOffsets.delete(composeBox);

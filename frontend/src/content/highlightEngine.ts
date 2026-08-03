@@ -10,7 +10,7 @@ import "./styles.css";
 
 const HIGHLIGHT_CLASS = "mb-highlight";
 // styles.css의 .mb-card width와 맞춘 값. 뷰포트 밖으로 잘리지 않게 위치 계산에 쓴다.
-const CARD_WIDTH = 460;
+const CARD_WIDTH = 600;
 const VIEWPORT_MARGIN = 12;
 
 let cardHost: HTMLDivElement | null = null;
@@ -87,6 +87,14 @@ function openCard(anchor: HTMLElement, analysisId: string, issue: AnalysisIssue)
   host.style.left = `${left}px`;
   host.style.top = top !== undefined ? `${top}px` : "";
   host.style.bottom = bottom !== undefined ? `${bottom}px` : "";
+  // suggestion/reason이 길어 카드가 커져도 액션 버튼이 뷰포트 밖으로 밀려나지 않도록,
+  // 카드가 실제로 놓인 위치 기준으로 남는 세로 공간만큼만 높이를 허용하고 넘치면
+  // host 자체를 스크롤시킨다(styles.css의 overflow-y: auto와 함께 동작).
+  const availableHeight =
+    top !== undefined
+      ? window.innerHeight - top - VIEWPORT_MARGIN
+      : window.innerHeight - bottom! - VIEWPORT_MARGIN;
+  host.style.maxHeight = `${Math.max(160, availableHeight)}px`;
   host.style.display = "block";
 
   root.render(
@@ -125,22 +133,27 @@ function openCard(anchor: HTMLElement, analysisId: string, issue: AnalysisIssue)
 // 카드 바깥을 클릭하면 닫히도록. 하이라이트 클릭 핸들러는 stopPropagation으로 이 리스너를 막는다.
 document.addEventListener("click", () => closeCard());
 
+// scanAndHighlight가 항상 clearHighlights로 기존 하이라이트를 지운 뒤 호출되므로,
+// 이 시점에는 .mb-highlight 안에 있는 텍스트 노드를 걸러낼 필요가 없다. 순수하게
+// 텍스트 노드만 이어붙여야 getPlainText()가 만드는 문자열과 오프셋이 정확히 맞는다.
 function collectTextNodes(container: HTMLElement): Text[] {
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-    acceptNode(node: Node): number {
-      const parent = (node as Text).parentElement;
-      if (parent?.closest(`.${HIGHLIGHT_CLASS}`)) {
-        return NodeFilter.FILTER_REJECT;
-      }
-      return NodeFilter.FILTER_ACCEPT;
-    }
-  });
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
 
   const nodes: Text[] = [];
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     nodes.push(node as Text);
   }
   return nodes;
+}
+
+// 백엔드로 보내는 텍스트와 하이라이트 위치 계산에 쓰는 텍스트가 서로 다른 방식으로
+// 뽑히면(예: innerText는 <div> 줄바꿈마다 합성 개행을 끼워 넣지만 텍스트 노드를
+// 그냥 이어붙이면 그 개행이 없음) 오프셋이 어긋나 하이라이트가 단어 중간을 잘라버린다.
+// 두 곳 모두 이 함수 하나로 텍스트를 뽑아써야 오프셋이 항상 일치한다.
+export function getPlainText(container: HTMLElement): string {
+  return collectTextNodes(container)
+    .map((node) => node.data)
+    .join("");
 }
 
 export function clearHighlights(container: HTMLElement): void {
@@ -192,12 +205,76 @@ function highlightRange(
   }
 }
 
+// original과 정확히 같은 문구가 이메일 안에 여러 번 나올 수 있으므로(반복되는 인사말 등),
+// 모든 occurrence 중 서버가 준 start_index(약간 어긋났더라도 대략적인 위치는 맞음)에 가장
+// 가까운 것을 고른다 — 단순히 첫 번째 occurrence를 쓰면 이미 지나간 구간의 같은 문구를
+// 잘못 짚을 수 있다.
+function findClosestOccurrence(fullText: string, needle: string, hint: number): number {
+  if (!needle) return -1;
+  let best = -1;
+  let bestDistance = Infinity;
+  for (let index = fullText.indexOf(needle); index !== -1; index = fullText.indexOf(needle, index + 1)) {
+    const distance = Math.abs(index - hint);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = index;
+    }
+  }
+  return best;
+}
+
+// AI가 반환하는 original/오프셋은 프롬프트로 아무리 강조해도 가끔 단어 중간에서
+// 잘린다("Your"의 "Y"를 빠뜨리고 "our..."부터 잡거나, "Please"의 "P"까지만 포함하고
+// "lease"를 남기는 식). fix_type "replace"에서 이 상태로 그대로 치환하면 잘려나간
+// 앞/뒤 글자가 고아처럼 남아 문장이 깨지므로, 최종 범위는 항상 온전한 단어 경계로
+// 넓혀 스냅시킨다 — AI가 무엇을 반환하든 마지막 방어선 역할을 한다.
+const WORD_CHAR_PATTERN = /[\p{L}\p{N}]/u;
+
+function isWordChar(char: string | undefined): boolean {
+  return char !== undefined && WORD_CHAR_PATTERN.test(char);
+}
+
+function snapToWordBoundaries(fullText: string, start: number, end: number): { start: number; end: number } {
+  let snappedStart = start;
+  while (snappedStart > 0 && isWordChar(fullText[snappedStart - 1]) && isWordChar(fullText[snappedStart])) {
+    snappedStart--;
+  }
+  let snappedEnd = end;
+  while (snappedEnd < fullText.length && isWordChar(fullText[snappedEnd - 1]) && isWordChar(fullText[snappedEnd])) {
+    snappedEnd++;
+  }
+  return { start: snappedStart, end: snappedEnd };
+}
+
+// 서버 오프셋은 클라이언트가 뽑아낸 텍스트와 완전히 같은 방식으로 세어졌다는 가정에
+// 의존하는데, Gmail은 문단마다 별도 <div>를 쓰고 빈 줄도 특수하게 구성돼 있어 그 가정이
+// 쉽게 깨진다. AI가 원문 그대로 베낀 issue.original을 실제 DOM 텍스트에서 직접 찾는 편이
+// 훨씬 안정적이므로 오프셋은 검색 실패 시의 폴백으로만 쓴다.
+function resolveIssueRange(fullText: string, issue: AnalysisIssue): { start: number; end: number } | null {
+  const found = findClosestOccurrence(fullText, issue.original, issue.start_index);
+  if (found !== -1) {
+    return snapToWordBoundaries(fullText, found, found + issue.original.length);
+  }
+  if (issue.start_index < issue.end_index && issue.end_index <= fullText.length) {
+    return snapToWordBoundaries(fullText, issue.start_index, issue.end_index);
+  }
+  return null;
+}
+
 export function scanAndHighlight(container: HTMLElement, analysisId: string, issues: AnalysisIssue[]): void {
   clearHighlights(container);
   if (issues.length === 0) return;
 
-  const byStartDescending = [...issues].sort((a, b) => b.start_index - a.start_index);
-  for (const issue of byStartDescending) {
-    highlightRange(container, analysisId, issue.start_index, issue.end_index, issue);
+  const fullText = getPlainText(container);
+  const resolved = issues
+    .map((issue) => {
+      const range = resolveIssueRange(fullText, issue);
+      return range && { issue, ...range };
+    })
+    .filter((entry): entry is { issue: AnalysisIssue; start: number; end: number } => Boolean(entry));
+
+  const byStartDescending = resolved.sort((a, b) => b.start - a.start);
+  for (const { issue, start, end } of byStartDescending) {
+    highlightRange(container, analysisId, start, end, issue);
   }
 }

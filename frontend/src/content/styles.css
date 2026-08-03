@@ -14,10 +14,16 @@
 .mb-card-host {
   position: fixed;
   z-index: 2147483647;
+  /* 카드가 아무리 길어져도 뷰포트를 벗어나지 않게 하고, 넘치는 내용은 host 자체를
+     스크롤시켜서 액션 버튼이 화면 밖으로 잘려 안 보이는 일이 없도록 한다. */
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
 }
 
 .mb-card {
-  width: 460px;
+  /* 제안 문장이 한 줄에 더 많이 들어가도록 폭을 넓혀 세로로 늘어나는 걸 줄인다. */
+  width: 600px;
+  max-width: calc(100vw - 24px);
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
