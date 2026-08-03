@@ -1,5 +1,7 @@
 /* Gmail 작성창 하이라이트 + 교정 제안 카드 스타일 */
 
+@import "pretendard/dist/web/variable/pretendardvariable.css";
+
 .mb-highlight {
   cursor: pointer;
   background-color: rgba(217, 48, 37, 0.16);
@@ -27,9 +29,15 @@
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
-  font-family: "Google Sans", Roboto, system-ui, sans-serif;
+  font-family: "Pretendard Variable", "Google Sans", Roboto, system-ui, sans-serif;
   color: #202124;
   position: relative;
+  /* 기본값(word-break: normal)은 한글 음절 사이 아무 데서나 줄바꿈을 허용해서
+     "회신"이 "회"/"신"으로 잘리는 식으로 랜덤하게 끊긴다. keep-all로 띄어쓰기
+     단위로만 줄바꿈되게 하고, break-word로 너무 긴 단어(URL 등)만 예외 처리한다.
+     상속되는 속성이라 카드 안 모든 텍스트(suggestion/reason 등)에 함께 적용된다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .mb-card__arrow {
@@ -81,7 +89,9 @@
   grid-template-columns: 1.15fr 1fr;
   gap: 14px;
   padding: 0 16px 16px;
-  align-items: start;
+  /* stretch로 바꿔야 두 칼럼 높이가 맞춰져서 .mb-card__reason의 구분선이
+     칼럼 전체 높이를 가로지른다. */
+  align-items: stretch;
 }
 
 .mb-card__left {
@@ -102,10 +112,31 @@
 }
 
 .mb-card__reason {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* 왼쪽 칼럼(suggestion)과 구분되도록 가운데에 세로선을 긋는다. */
+  padding-left: 14px;
+  border-left: 1px solid #dadce0;
+}
+
+.mb-card__reason-label {
+  /* 헤더의 .mb-card__title과 폰트/사이즈/색을 맞춘다. */
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a73e8;
+}
+
+.mb-card__reason-text {
   font-size: 12.5px;
   line-height: 1.6;
-  color: #5f6368;
-  padding-top: 10px;
+  color: #3c4043;
+  /* 왼쪽의 파란 suggestion 박스와 같은 모양(둥근 모서리+왼쪽 강조선)을 쓰되
+     색은 아주 연하게 낮춰서 톤을 구분한다. */
+  background: #f8f9fa;
+  border-left: 3px solid #dadce0;
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 
 .mb-card__actions {
@@ -153,26 +184,63 @@
 }
 
 .mb-mode-toggle__btn {
-  border: 1px solid #dadce0;
+  border: none;
   background: #ffffff;
-  color: #3c4043;
+  color: #1a73e8;
   border-radius: 16px;
-  padding: 4px 12px;
+  padding: 5px 14px;
   font-size: 12px;
-  font-family: "Google Sans", Roboto, system-ui, sans-serif;
+  font-weight: 500;
+  font-family: "Pretendard Variable", "Google Sans", Roboto, system-ui, sans-serif;
   cursor: pointer;
+  /* 테두리 대신 은은한 그림자로 버튼의 입체감/경계를 표현한다. */
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.15), 0 1px 2px rgba(60, 64, 67, 0.1);
+}
+
+.mb-mode-toggle__btn:hover {
+  box-shadow: 0 1px 4px rgba(60, 64, 67, 0.2), 0 2px 3px rgba(60, 64, 67, 0.12);
 }
 
 .mb-mode-toggle__btn--active {
-  background: #e8f0fe;
-  border-color: #1a73e8;
-  color: #1a73e8;
-  font-weight: 500;
+  background: #1a73e8;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.4);
 }
 
-.mb-send-review-status {
-  margin-left: 10px;
-  font-size: 12.5px;
-  color: #5f6368;
-  font-family: "Google Sans", Roboto, system-ui, sans-serif;
+.mb-mode-toggle__btn--active:hover {
+  box-shadow: 0 3px 8px rgba(26, 115, 232, 0.45);
+}
+
+.mb-review-banner {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1a73e8;
+  color: #ffffff;
+  font-family: "Pretendard Variable", "Google Sans", Roboto, system-ui, sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 12px 22px;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(26, 115, 232, 0.35), 0 2px 8px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+.mb-review-banner__spinner {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  animation: mb-review-banner-spin 0.7s linear infinite;
+}
+
+@keyframes mb-review-banner-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

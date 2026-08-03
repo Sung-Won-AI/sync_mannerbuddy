@@ -154,14 +154,28 @@ function attachSendInterception(composeBox: HTMLElement): void {
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
+// 작은 회색 글씨로는 눈에 잘 안 띄어서, 이메일 화면 중앙에 파란 배지 형태로
+// 검토 중임을 알린다. sendButton 옆이 아니라 composeBox 중앙에 고정 위치로 띄운다.
+function showReviewBanner(composeBox: HTMLElement): HTMLElement {
+  const rect = composeBox.getBoundingClientRect();
+  const banner = document.createElement("div");
+  banner.className = "mb-review-banner";
+  banner.style.left = `${rect.left + rect.width / 2}px`;
+  banner.style.top = `${rect.top + rect.height / 2}px`;
+
+  const spinner = document.createElement("span");
+  spinner.className = "mb-review-banner__spinner";
+  banner.append(spinner, document.createTextNode("매너 검토 중..."));
+
+  document.body.appendChild(banner);
+  return banner;
+}
+
 async function reviewBeforeSend(composeBox: HTMLElement, sendButton: HTMLElement): Promise<void> {
   const fullText = getPlainText(composeBox).trim();
   hasReviewedBeforeSend.add(composeBox); // 결과와 무관하게 이 발송 시도에서 검토 기회를 소진한다.
 
-  const status = document.createElement("span");
-  status.className = "mb-send-review-status";
-  status.textContent = "매너 검토 중...";
-  sendButton.insertAdjacentElement("afterend", status);
+  const status = showReviewBanner(composeBox);
 
   try {
     const { targetCountry, language } = inferLanguageContext(fullText);

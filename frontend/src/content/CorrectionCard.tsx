@@ -37,7 +37,10 @@ export function CorrectionCard({ issue, onApply, onDismiss, onClose }: Correctio
             </button>
           </div>
         </div>
-        <div className="mb-card__reason">{issue.reason}</div>
+        <div className="mb-card__reason">
+          <span className="mb-card__reason-label">Manner Buddy의 팁</span>
+          <span className="mb-card__reason-text">{issue.reason}</span>
+        </div>
       </div>
     </div>
   );
