@@ -109,6 +109,9 @@
   border-left: 3px solid #1a73e8;
   color: #174ea6;
   font-weight: 500;
+  /* insert형 suggestion(서명 예시 등)에 실제 줄바꿈이 들어있으면 그대로 살려서
+     보여준다. 기본값은 줄바꿈을 공백으로 뭉개버린다. */
+  white-space: pre-line;
 }
 
 .mb-card__reason {
@@ -137,6 +140,7 @@
   border-left: 3px solid #dadce0;
   border-radius: 8px;
   padding: 10px 12px;
+  white-space: pre-line;
 }
 
 .mb-card__actions {

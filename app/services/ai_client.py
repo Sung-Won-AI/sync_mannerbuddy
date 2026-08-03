@@ -294,11 +294,13 @@ issues[]의 start_index/end_index는 입력된 이메일 본문 문자열 기준
 문자 오프셋이어야 합니다. 문제가 없으면 issues는 빈 배열로 반환하세요.
 
 출력 언어 규칙(매우 중요, 예외 없음): reason과 summary 필드는 target_country나
-이메일 본문 언어와 전혀 관계없이 무조건 한국어로만 작성하세요. 이메일 본문이
-전부 영어라서 suggestion/original/revised_text가 영어인 것과는 별개로,
-reason과 summary는 예외 없이 한국어입니다 — "본문이 영어니까 설명도 영어로
-쓰는 게 자연스럽겠다"는 판단은 틀렸습니다. 위 참고 기준에 나온 일본어/영어
-예시 문구(お世話になっております, Would it be possible... 등)는 suggestion이나
+이메일 본문이 어떤 언어(영어, 일본어, 중국어 등 무엇이든)로 쓰였는지와 전혀
+관계없이 무조건 한국어로만 작성하세요. 이메일 본문 언어에 맞춰
+suggestion/original/revised_text가 그 언어(영어/일본어/중국어 등)로 쓰이는 것과는
+완전히 별개로, reason과 summary는 어떤 경우에도 예외 없이 한국어입니다 —
+"본문이 이 언어니까 설명도 그 언어로 쓰는 게 자연스럽겠다"는 판단은 언어가
+무엇이든 항상 틀렸습니다. 위 참고 기준에 나온 일본어/영어 예시 문구
+(お世話になっております, Would it be possible... 등)는 suggestion이나
 revised_text에 원문 언어 그대로 넣기 위한 참고용 예시일 뿐입니다.
 reason과 summary에는 그 예시 문구를 절대 그대로 옮기지 말고, 한국어로
 풀어서 설명하세요. 이 한국어 문장들은 예외 없이 전부 존댓말(~습니다/~해요체)로
@@ -363,11 +365,20 @@ _REALTIME_MODE_INSTRUCTION = """지금은 "실시간 문장 교정" 모드입니
 - vocabulary/tone/taboo 카테고리만 검토하세요. manners(인사말, 자기소개, 마무리
   인사, 서명처럼 이메일 전체 구조를 봐야 판단 가능한 항목)는 이 모드에서는 알 수
   없으니 issues에 절대 포함하지 마세요 — 그건 나중에 "발송 전 검토"에서 다룹니다.
+  이 규칙은 category 라벨을 무엇으로 붙이든 내용 자체에 적용됩니다: "서두에
+  인사말(예: お世話になっております)이 없다", "자기소개가 없다", "마무리 인사가
+  없다" 같은 지적은 vocabulary나 tone으로 분류해서라도 절대 issue로 만들지
+  마세요 — 지금 받은 구간이 이메일의 첫 문장인지조차 알 수 없으므로 이런 지적은
+  이 모드에서 원천적으로 근거가 없습니다.
 - issues는 전부 fix_type "replace"여야 합니다 — 지금 이 구간에 바로 넣을 수 있는
-  완성된 대체 문장을 suggestion에 제시하세요. 톤이 안 맞는 인사말(예: "Hey,")도
-  삭제하지 말고 "Hi Smith," 같은 어울리는 대체 표현으로 바꾸세요. 이 모드에서는
-  "insert"를 쓸 수 없으니, 정말로 대체할 표현 없이 그 문구 자체를 통째로 없애야만
-  하는 경우(중복 표현 등)에 한해서만 suggestion을 빈 문자열("")로 반환하세요.
+  완성된 대체 문장을 suggestion에 제시하세요. suggestion은 그 구간을 대체할
+  문장 "하나"만 담아야 합니다 — 같은 문구를 여러 번 반복하거나, 후보 표현
+  여러 개를 줄바꿈으로 나열하거나, 원문에 없던 인사말/사과 문구를 앞에
+  덧붙이는 것은 절대 금지입니다(그런 건 위 규칙대로 애초에 issue를 만들지 않아야
+  하는 경우입니다). 톤이 안 맞는 인사말(예: "Hey,")도 삭제하지 말고 "Hi Smith,"
+  같은 어울리는 대체 표현으로 바꾸세요. 이 모드에서는 "insert"를 쓸 수 없으니,
+  정말로 대체할 표현 없이 그 문구 자체를 통째로 없애야만 하는 경우(중복 표현
+  등)에 한해서만 suggestion을 빈 문자열("")로 반환하세요.
   (fix_type 규칙의 "replace" 예시 참고)
 - scores.manners는 이 모드에서 평가하지 않으니 100으로 고정해서 반환하세요."""
 
@@ -474,6 +485,39 @@ _QUIZ_SYSTEM_PROMPT = """당신은 국제 비즈니스 매너 학습 퀴즈의 �
 
 
 
+_HANGUL_PATTERN = re.compile(r"[가-힣]")
+_LETTER_PATTERN = re.compile(r"[^\W\d_]", re.UNICODE)
+
+
+def _unescape_literal_newlines(text: str) -> str:
+    """모델이 JSON 문자열 안에 실제 개행 대신 리터럴 백슬래시+n 두 글자를 넣는
+    과이스케이프 실수가 가끔 있어("\\n"이 화면에 그대로 보임). 진짜 개행 문자는
+    이 치환의 대상이 아니므로(파이썬 문자열에서 둘은 별개 문자) 안전하게 되돌릴
+    수 있다."""
+    return text.replace("\\n", "\n")
+
+
+def _sanitize_email_result(result: AIAnalysisResult) -> AIAnalysisResult:
+    result.summary = _unescape_literal_newlines(result.summary)
+    result.revised_text = _unescape_literal_newlines(result.revised_text)
+    for issue in result.issues:
+        issue.suggestion = _unescape_literal_newlines(issue.suggestion)
+        issue.reason = _unescape_literal_newlines(issue.reason)
+    return result
+
+
+def _is_mostly_korean(text: str) -> bool:
+    """reason/summary가 통째로 다른 언어로 쓰인 건 아닌지 대략적으로 판정한다.
+    프롬프트 지시상 문장 안에서 원문 구절을 짧게 인용하는 건 정상이므로, 전체
+    글자 수 대비 한글 비율로 판단한다. 텍스트가 너무 짧으면 판단하지 않고
+    통과시켜 오탐을 줄인다."""
+    letters = _LETTER_PATTERN.findall(text)
+    if len(letters) < 10:
+        return True
+    hangul = _HANGUL_PATTERN.findall(text)
+    return len(hangul) / len(letters) >= 0.4
+
+
 class ClaudeAIClient(BaseAIClient):
     def __init__(self) -> None:
         if not settings.claude_api_key:
@@ -526,6 +570,30 @@ class ClaudeAIClient(BaseAIClient):
         if result is None:
             raise AIResponseValidationError()
 
+        # reason/summary는 프롬프트로 여러 번 강조해도 가끔 이메일 본문 언어(영어/일본어 등)
+        # 그대로 새어나온다. 한 번 더 강하게 재지시해서 재시도한다 — 그래도 실패하면
+        # 응답 자체를 막지는 않고(가용성 우선) 원래 결과를 그대로 쓴다.
+        if not _is_mostly_korean(result.summary) or any(
+            not _is_mostly_korean(issue.reason) for issue in result.issues
+        ):
+            logger.warning("reason/summary 언어 검증 실패, 재시도합니다 (model=%s)", settings.claude_model)
+            retry_kwargs = {
+                **request_kwargs,
+                "system": system_prompt
+                + "\n\n[재시도 안내] 방금 응답에서 reason 또는 summary를 한국어가 아닌"
+                " 다른 언어로 반환하는 실수가 있었습니다. 이번에는 reason과 summary를"
+                " 처음부터 끝까지 예외 없이 100% 한국어로만 작성하세요.",
+            }
+            try:
+                retry_response = await self._client.messages.parse(**retry_kwargs)
+                if (
+                    getattr(retry_response, "stop_reason", None) != "refusal"
+                    and retry_response.parsed_output is not None
+                ):
+                    result = retry_response.parsed_output
+            except Exception:
+                logger.exception("언어 검증 재시도 호출 실패 (model=%s)", settings.claude_model)
+
         # 프롬프트 지시를 모델이 놓칠 수 있으니, 모드별 카테고리 분리를 서버에서도 강제한다:
         # 실시간은 문장 교정(vocabulary/tone/taboo)만, 발송 전 검토는 매너/구조만.
         if is_realtime:
@@ -539,7 +607,7 @@ class ClaudeAIClient(BaseAIClient):
             for issue in result.issues:
                 issue.fix_type = IssueFixType.INSERT
 
-        return result
+        return _sanitize_email_result(result)
 
     async def analyze_meeting(
         self,
