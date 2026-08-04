@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { answerQuiz, fetchQuiz } from "../lib/api";
+import { COUNTRY_FLAG } from "../lib/constants";
 import type { QuizAnswerResponse, QuizSetResponse } from "../shared/quizTypes";
+import type { TargetCountry } from "../shared/meetingTypes";
 
 type QuizState =
   | { status: "loading" }
@@ -10,13 +12,25 @@ type QuizState =
       quiz: QuizSetResponse;
       index: number;
       results: Record<string, QuizAnswerResponse>;
+      // 화면 표시용 상태라 재시작하면 리셋된다 — 서버에 저장하지 않는다.
+      selections: Record<string, string>;
+      streak: number;
+      bestStreak: number;
     };
 
 const LIMIT = 5;
 
 function loadQuiz(): Promise<QuizState> {
   return fetchQuiz(LIMIT).then(
-    (quiz): QuizState => ({ status: "playing", quiz, index: 0, results: {} }),
+    (quiz): QuizState => ({
+      status: "playing",
+      quiz,
+      index: 0,
+      results: {},
+      selections: {},
+      streak: 0,
+      bestStreak: 0
+    }),
     (err: unknown): QuizState => ({
       status: "error",
       message: err instanceof Error ? err.message : "퀴즈를 불러오지 못했습니다."
@@ -60,21 +74,39 @@ export function QuizPage() {
     );
   }
 
-  const { quiz, index, results } = state;
+  const { quiz, index, results, selections, bestStreak } = state;
+  const total = quiz.questions.length;
 
   if (state.status === "finished") {
     const answered = Object.values(results);
     const correctCount = answered.filter((r) => r.correct).length;
     const totalScore = answered.reduce((sum, r) => sum + r.score_awarded, 0);
+    const accuracy = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+    const celebrate = accuracy >= 80;
 
     return (
       <div className="quiz-page">
         <div className="quiz-summary">
+          <div className="quiz-summary__burst" aria-hidden="true">
+            {celebrate ? "🎉" : "💪"}
+          </div>
           <span className="quiz-summary__eyebrow">복습 완료</span>
+          <div className="quiz-summary__ring" style={{ "--pct": `${accuracy}%` } as CSSProperties}>
+            <span className="quiz-summary__ring-value">{accuracy}%</span>
+          </div>
           <h1 className="quiz-summary__title">
-            {quiz.questions.length}문제 중 {correctCount}개 맞혔어요
+            {total}문제 중 {correctCount}개 맞혔어요
           </h1>
-          <p className="quiz-summary__score">획득 점수 {totalScore}점</p>
+          <div className="quiz-summary__stats">
+            <div className="quiz-summary__stat">
+              <span className="quiz-summary__stat-value">+{totalScore}</span>
+              <span className="quiz-summary__stat-label">획득 점수</span>
+            </div>
+            <div className="quiz-summary__stat">
+              <span className="quiz-summary__stat-value">🔥 {bestStreak}</span>
+              <span className="quiz-summary__stat-label">최고 연속 정답</span>
+            </div>
+          </div>
           <button type="button" className="quiz-summary__restart" onClick={restart}>
             다시 풀기
           </button>
@@ -85,16 +117,30 @@ export function QuizPage() {
 
   const question = quiz.questions[index];
   const result = results[question.id];
+  const selectedOptionId = selections[question.id];
+  const answeredCount = Object.keys(results).length;
+  const progressPct = total > 0 ? (answeredCount / total) * 100 : 0;
+  const flag = COUNTRY_FLAG[question.country as TargetCountry] ?? "🌐";
 
   function handleSelect(optionId: string) {
     if (result) return; // 이미 답변한 문제는 다시 제출하지 않는다.
+    setState((prev) =>
+      prev.status === "playing"
+        ? { ...prev, selections: { ...prev.selections, [question.id]: optionId } }
+        : prev
+    );
     answerQuiz(question.id, optionId)
       .then((answer) => {
-        setState((prev) =>
-          prev.status === "playing"
-            ? { ...prev, results: { ...prev.results, [question.id]: answer } }
-            : prev
-        );
+        setState((prev) => {
+          if (prev.status !== "playing") return prev;
+          const nextStreak = answer.correct ? prev.streak + 1 : 0;
+          return {
+            ...prev,
+            results: { ...prev.results, [question.id]: answer },
+            streak: nextStreak,
+            bestStreak: Math.max(prev.bestStreak, nextStreak)
+          };
+        });
       })
       .catch((err: unknown) => {
         setState({
@@ -117,20 +163,40 @@ export function QuizPage() {
   return (
     <div className="quiz-page">
       <header className="quiz-page__header">
-        <span className="quiz-page__eyebrow">이번 기간 표현 복습하기</span>
-        <span className="quiz-page__progress">
-          {index + 1} / {quiz.questions.length}
-        </span>
+        <div className="quiz-page__progress-track" role="progressbar" aria-valuenow={answeredCount} aria-valuemin={0} aria-valuemax={total}>
+          <div className="quiz-page__progress-fill" style={{ width: `${progressPct}%` }} />
+        </div>
+        <div className="quiz-page__meta">
+          <span className="quiz-page__count">
+            {index + 1} / {total}
+          </span>
+          {state.streak > 0 && (
+            <span className="quiz-page__streak" key={state.streak}>
+              🔥 {state.streak}연속
+            </span>
+          )}
+        </div>
       </header>
 
-      <div className="quiz-card">
-        <span className="quiz-card__category">{question.category}</span>
+      <div className={`quiz-card${result ? (result.correct ? " quiz-card--correct" : " quiz-card--wrong") : ""}`}>
+        <span className="quiz-card__category">
+          <span aria-hidden="true">{flag}</span>
+          {question.category}
+        </span>
         <p className="quiz-card__prompt">{question.prompt}</p>
 
         <div className="quiz-card__options">
           {question.options.map((option) => {
-            const isCorrect = result && option.id === result.correct_option_id;
-            const stateClass = !result ? "" : isCorrect ? " quiz-card__option--correct" : " quiz-card__option--muted";
+            const isCorrectOption = result && option.id === result.correct_option_id;
+            const isSelected = option.id === selectedOptionId;
+            const isWrongSelection = result && !result.correct && isSelected;
+
+            let stateClass = "";
+            if (result) {
+              if (isCorrectOption) stateClass = " quiz-card__option--correct";
+              else if (isWrongSelection) stateClass = " quiz-card__option--wrong";
+              else stateClass = " quiz-card__option--muted";
+            }
 
             return (
               <button
@@ -140,7 +206,17 @@ export function QuizPage() {
                 onClick={() => handleSelect(option.id)}
                 disabled={Boolean(result)}
               >
-                {option.text}
+                <span className="quiz-card__option-text">{option.text}</span>
+                {isCorrectOption && (
+                  <span className="quiz-card__option-icon" aria-hidden="true">
+                    ✓
+                  </span>
+                )}
+                {isWrongSelection && (
+                  <span className="quiz-card__option-icon" aria-hidden="true">
+                    ✕
+                  </span>
+                )}
               </button>
             );
           })}
@@ -149,11 +225,14 @@ export function QuizPage() {
         {result && (
           <div className={`quiz-card__result${result.correct ? " quiz-card__result--correct" : " quiz-card__result--wrong"}`}>
             <span className="quiz-card__result-label">
+              <span className="quiz-card__result-icon" aria-hidden="true">
+                {result.correct ? "🎉" : "😅"}
+              </span>
               {result.correct ? `정답이에요! +${result.score_awarded}점` : "아쉬워요, 오답이에요."}
             </span>
             <p className="quiz-card__result-explanation">{result.explanation}</p>
             <button type="button" className="quiz-card__next" onClick={goNext}>
-              {index + 1 >= quiz.questions.length ? "결과 보기" : "다음 문제"} →
+              {index + 1 >= total ? "결과 보기" : "다음 문제"} →
             </button>
           </div>
         )}
