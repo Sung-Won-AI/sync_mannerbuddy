@@ -103,7 +103,7 @@ export function MeetingReview({
           </ul>
         </div>
         <div className="footer-card">
-          <h3>액션 아이템</h3>
+          <h3>To-do list</h3>
           <ul>
             {response.action_items.map((item, index) => (
               <li key={index}>{item}</li>
