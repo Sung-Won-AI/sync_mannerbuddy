@@ -22,7 +22,14 @@ const CATEGORY_INSIGHT: Record<string, (country: string, count: number) => strin
     `${country} 파트너에게는 격식 있는 어휘 선택이 아쉬운 표현이 ${count}건 있었어요.`
 };
 
+// 미국은 top_category/count와 무관하게 항상 이 문구로 고정한다. 일본 등
+// 다른 국가는 기존 CATEGORY_INSIGHT 로직을 그대로 쓴다.
+const US_FIXED_INSIGHT =
+  "미국 파트너에게 캐주얼한 영어를 많이 사용했어요. 좀 더 예의바른 비즈니스 영어를 사용해보는건 어떨까요?";
+
 function insightText(insight: CountryInsight): string {
+  if (insight.country === "US") return US_FIXED_INSIGHT;
+
   const countryName = COUNTRY_NAME[insight.country as TargetCountry] ?? insight.country;
   const template = CATEGORY_INSIGHT[insight.top_category];
   return template
@@ -139,7 +146,14 @@ export function DashboardPage({ onGoToQuiz }: DashboardPageProps) {
                 {summary.country_insights.map((insight) => (
                   <div className="insight-card insight-card--compact" key={insight.country}>
                     <div className="insight-card__flag">
-                      {COUNTRY_FLAG[insight.country as TargetCountry] ?? "🌐"}
+                      {COUNTRY_FLAG[insight.country as TargetCountry] ? (
+                        <img
+                          src={COUNTRY_FLAG[insight.country as TargetCountry]}
+                          alt={`${insight.country} 국기`}
+                        />
+                      ) : (
+                        "🌐"
+                      )}
                     </div>
                     <div>
                       <h3 className="insight-card__title">

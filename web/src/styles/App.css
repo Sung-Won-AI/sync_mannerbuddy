@@ -310,8 +310,23 @@ textarea {
 }
 
 .insight-card__flag {
-  font-size: 36px;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 28px;
   line-height: 1;
+}
+
+.insight-card__flag img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .insight-card__title {
@@ -778,7 +793,9 @@ textarea {
 }
 
 .insight-card--compact .insight-card__flag {
-  font-size: 28px;
+  width: 28px;
+  height: 28px;
+  font-size: 22px;
 }
 
 .insight-card--compact .insight-card__title {
@@ -1107,6 +1124,13 @@ textarea {
   margin-bottom: 16px;
 }
 
+.quiz-card__category-flag {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  object-fit: cover;
+}
+
 .quiz-card__prompt {
   font-size: 17px;
   font-weight: 600;
@@ -1115,10 +1139,81 @@ textarea {
   margin: 0 0 22px;
 }
 
+/* O/X 전용 — "다음 설명이 맞으면..." 같은 안내문과, 실제로 참/거짓을 판단해야
+   할 문장이 같은 문단이면 구분이 안 간다. 안내문은 작고 옅게, 판단할 문장은
+   박스로 감싸 시선이 바로 가게 한다. */
+.quiz-card__instruction {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--mb-ink-soft);
+  margin: 0 0 10px;
+}
+
+.quiz-card__statement {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: pre-line;
+  margin: 0 0 22px;
+  padding: 16px 18px;
+  background: var(--mb-bg);
+  border-radius: var(--mb-radius-md);
+  border-left: 3px solid var(--mb-blue);
+}
+
 .quiz-card__options {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* O/X 문제 전용 — "셋 중 맞는 것 고르기"인 다중보기 리스트와는 다르게, 진짜
+   O/X 판정처럼 크고 나란한 버튼 두 개로 보여준다. */
+.quiz-card__ox-options {
+  display: flex;
+  gap: 14px;
+}
+
+.quiz-card__ox-btn {
+  flex: 1;
+  border: 2px solid var(--mb-border);
+  background: var(--mb-surface);
+  color: var(--mb-ink);
+  border-radius: 18px;
+  padding: 28px 16px;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+
+.quiz-card__ox-btn:hover:not(:disabled) {
+  border-color: var(--mb-blue);
+  background: #f5f8ff;
+  transform: translateY(-2px);
+}
+
+.quiz-card__ox-btn:disabled {
+  cursor: default;
+}
+
+.quiz-card__ox-btn--correct {
+  border-color: var(--mb-green);
+  background: var(--mb-green-bg);
+  color: var(--mb-green);
+  animation: mb-option-pop 0.3s ease;
+}
+
+.quiz-card__ox-btn--wrong {
+  border-color: var(--mb-red);
+  background: var(--mb-red-bg);
+  color: var(--mb-red);
+  animation: mb-quiz-shake 0.4s ease;
+}
+
+.quiz-card__ox-btn--muted {
+  color: var(--mb-ink-faint, var(--mb-ink-soft));
+  opacity: 0.5;
 }
 
 .quiz-card__option {

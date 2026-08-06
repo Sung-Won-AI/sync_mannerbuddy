@@ -5,7 +5,7 @@ export interface QuizOption {
   text: string;
 }
 
-export type QuizQuestionType = "correction" | "culture";
+export type QuizQuestionType = "correction" | "ox";
 
 export interface QuizQuestion {
   id: string;

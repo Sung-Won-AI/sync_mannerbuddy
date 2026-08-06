@@ -120,7 +120,7 @@ export function QuizPage() {
   const selectedOptionId = selections[question.id];
   const answeredCount = Object.keys(results).length;
   const progressPct = total > 0 ? (answeredCount / total) * 100 : 0;
-  const flag = COUNTRY_FLAG[question.country as TargetCountry] ?? "🌐";
+  const flagUrl = COUNTRY_FLAG[question.country as TargetCountry];
 
   function handleSelect(optionId: string) {
     if (result) return; // 이미 답변한 문제는 다시 제출하지 않는다.
@@ -180,47 +180,96 @@ export function QuizPage() {
 
       <div className={`quiz-card${result ? (result.correct ? " quiz-card--correct" : " quiz-card--wrong") : ""}`}>
         <span className="quiz-card__category">
-          <span aria-hidden="true">{flag}</span>
+          {flagUrl ? (
+            <img className="quiz-card__category-flag" src={flagUrl} alt="" aria-hidden="true" />
+          ) : (
+            <span aria-hidden="true">🌐</span>
+          )}
           {question.category}
         </span>
-        <p className="quiz-card__prompt">{question.prompt}</p>
-
-        <div className="quiz-card__options">
-          {question.options.map((option) => {
-            const isCorrectOption = result && option.id === result.correct_option_id;
-            const isSelected = option.id === selectedOptionId;
-            const isWrongSelection = result && !result.correct && isSelected;
-
-            let stateClass = "";
-            if (result) {
-              if (isCorrectOption) stateClass = " quiz-card__option--correct";
-              else if (isWrongSelection) stateClass = " quiz-card__option--wrong";
-              else stateClass = " quiz-card__option--muted";
-            }
-
+        {question.type === "ox" ? (
+          (() => {
+            // O/X 문제의 prompt는 "안내문\n판단할 문장" 형태로 온다. 둘을 같은
+            // 문단으로 붙여놓으면 구분이 안 가서, 안내문은 작고 옅게 위에 두고
+            // 실제로 판단할 문장은 박스로 감싸 확실히 분리한다.
+            const [instruction, ...rest] = question.prompt.split("\n");
+            const statement = rest.join("\n");
             return (
-              <button
-                key={option.id}
-                type="button"
-                className={`quiz-card__option${stateClass}`}
-                onClick={() => handleSelect(option.id)}
-                disabled={Boolean(result)}
-              >
-                <span className="quiz-card__option-text">{option.text}</span>
-                {isCorrectOption && (
-                  <span className="quiz-card__option-icon" aria-hidden="true">
-                    ✓
-                  </span>
-                )}
-                {isWrongSelection && (
-                  <span className="quiz-card__option-icon" aria-hidden="true">
-                    ✕
-                  </span>
-                )}
-              </button>
+              <>
+                <p className="quiz-card__instruction">{instruction}</p>
+                <p className="quiz-card__statement">{statement}</p>
+              </>
             );
-          })}
-        </div>
+          })()
+        ) : (
+          <p className="quiz-card__prompt">{question.prompt}</p>
+        )}
+
+        {question.type === "ox" ? (
+          <div className="quiz-card__ox-options">
+            {question.options.map((option) => {
+              const isCorrectOption = result && option.id === result.correct_option_id;
+              const isSelected = option.id === selectedOptionId;
+              const isWrongSelection = result && !result.correct && isSelected;
+
+              let stateClass = "";
+              if (result) {
+                if (isCorrectOption) stateClass = " quiz-card__ox-btn--correct";
+                else if (isWrongSelection) stateClass = " quiz-card__ox-btn--wrong";
+                else stateClass = " quiz-card__ox-btn--muted";
+              }
+
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`quiz-card__ox-btn${stateClass}`}
+                  onClick={() => handleSelect(option.id)}
+                  disabled={Boolean(result)}
+                >
+                  {option.text}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="quiz-card__options">
+            {question.options.map((option) => {
+              const isCorrectOption = result && option.id === result.correct_option_id;
+              const isSelected = option.id === selectedOptionId;
+              const isWrongSelection = result && !result.correct && isSelected;
+
+              let stateClass = "";
+              if (result) {
+                if (isCorrectOption) stateClass = " quiz-card__option--correct";
+                else if (isWrongSelection) stateClass = " quiz-card__option--wrong";
+                else stateClass = " quiz-card__option--muted";
+              }
+
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`quiz-card__option${stateClass}`}
+                  onClick={() => handleSelect(option.id)}
+                  disabled={Boolean(result)}
+                >
+                  <span className="quiz-card__option-text">{option.text}</span>
+                  {isCorrectOption && (
+                    <span className="quiz-card__option-icon" aria-hidden="true">
+                      ✓
+                    </span>
+                  )}
+                  {isWrongSelection && (
+                    <span className="quiz-card__option-icon" aria-hidden="true">
+                      ✕
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {result && (
           <div className={`quiz-card__result${result.correct ? " quiz-card__result--correct" : " quiz-card__result--wrong"}`}>

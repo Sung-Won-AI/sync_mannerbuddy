@@ -77,7 +77,9 @@ export function MeetingReview({
         </div>
 
         <div className="insight-card">
-          <div className="insight-card__flag">{COUNTRY_FLAG[targetCountry]}</div>
+          <div className="insight-card__flag">
+            <img src={COUNTRY_FLAG[targetCountry]} alt={`${targetCountry} 국기`} />
+          </div>
           <div>
             <h2 className="insight-card__title">{who}과의 회의 매너 요약</h2>
             <p className="insight-card__body">{response.summary}</p>

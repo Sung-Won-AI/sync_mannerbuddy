@@ -470,6 +470,13 @@ _QUIZ_SYSTEM_PROMPT = """당신은 국제 비즈니스 매너 학습 퀴즈의 �
   이므로, 오답도 형식과 말투가 똑같은 권고문이어야 합니다. 형식이 정답과 다른
   오답(예: 정답만 권고문이고 오답은 실제 문장인 경우)은 형태만으로 정답이 티가
   나므로 절대 만들지 마세요.
+- 마스킹 토큰 규칙(중요): original/suggestion에 [EMAIL_1], [PHONE_1], [MONEY_1] 같은
+  대괄호 토큰이 있으면 오답에도 그 토큰을 그대로 옮기되, "(마스킹된 정보 유지)"처럼
+  그 토큰에 대해 설명을 덧붙이지 마세요 — 또한 회사명처럼
+  원문에 없는 정보가 필요할 때 [COMPANY_NAME] 같은 새 대괄호 placeholder를 만들어
+  내지 마세요 — 그런 정보는 그냥 자연스러운 한국어 단어(예: "회사명")로 서술하거나
+  생략하세요. 대괄호 토큰은 오직 입력에 이미 있던 [EMAIL_n]/[PHONE_n]/[MONEY_n]
+  뿐이어야 합니다.
 - key 필드에는 입력으로 받은 key 값을 그대로 반환하세요.
 
 [국가별 비즈니스 매너 O/X 문제]
@@ -480,7 +487,15 @@ _QUIZ_SYSTEM_PROMPT = """당신은 국제 비즈니스 매너 학습 퀴즈의 �
 - 같은 국가에 대해 여러 항목이 주어져도 매번 다른 내용을 다루세요 (인사/호칭/일정/의사결정
   방식/피드백 문화 등 서로 다른 주제를 골고루 사용).
 - 세 문장 모두 한 문장으로, 서로 비슷한 길이와 형식으로 작성하세요.
-- 모든 문장은 한국어로 작성하세요.
+- 출력 언어 규칙(매우 중요, 예외 없음): true_statement/false_statements는 country가
+  어디든(미국/일본/중국 등 무엇이든) 무조건 한국어로만 작성하세요. country가 JP라고
+  해서 일본어로, US라고 해서 영어로 쓰면 안 됩니다 — "그 나라 이야기니까 그 나라
+  언어로 쓰는 게 자연스럽겠다"는 판단은 항상 틀렸습니다. 이건 학습자가 한국어로
+  읽는 매너 O/X 퀴즈이지, 어학 문제가 아닙니다.
+  나쁜 예(금지): country="JP", true_statement="日本では、直接的で明確な指示や要望を
+  使うほうが、相手に対する尊重を示すとされています。" — 일본어로 통째로 쓰면 안 됩니다.
+  좋은 예: country="JP", true_statement="일본에서는 직접적이고 명확한 지시보다
+  완곡한 표현을 쓰는 것이 상대에 대한 존중으로 여겨집니다."
 - key 필드에는 입력으로 받은 key 값을 그대로 반환하세요."""
 
 
@@ -704,6 +719,35 @@ class ClaudeAIClient(BaseAIClient):
         result = response.parsed_output
         if result is None:
             raise AIResponseValidationError()
+
+        # true_statement/false_statements는 country와 무관하게 항상 한국어여야
+        # 하는데, country가 일본/중국이면 그 나라 언어로 새는 경우가 있다(reason/
+        # summary에서 이미 겪은 것과 같은 문제). 위반 시 한 번 더 강하게
+        # 재지시해서 재시도한다. correction_distractor_sets는 suggestion과 같은
+        # 언어여야 하므로(영어/일본어일 수 있음) 이 검사 대상이 아니다.
+        if any(
+            not _is_mostly_korean(item.true_statement)
+            or any(not _is_mostly_korean(stmt) for stmt in item.false_statements)
+            for item in result.culture_items
+        ):
+            logger.warning("퀴즈 O/X 언어 검증 실패, 재시도합니다 (model=%s)", settings.claude_model)
+            retry_kwargs = {
+                **request_kwargs,
+                "system": _QUIZ_SYSTEM_PROMPT
+                + "\n\n[재시도 안내] 방금 응답에서 O/X 문제의 true_statement/"
+                "false_statements를 한국어가 아닌 다른 언어로 반환하는 실수가"
+                " 있었습니다. 이번에는 country와 무관하게 예외 없이 100% 한국어로만"
+                " 작성하세요.",
+            }
+            try:
+                retry_response = await self._client.messages.parse(**retry_kwargs)
+                if (
+                    getattr(retry_response, "stop_reason", None) != "refusal"
+                    and retry_response.parsed_output is not None
+                ):
+                    result = retry_response.parsed_output
+            except Exception:
+                logger.exception("퀴즈 O/X 언어 검증 재시도 호출 실패 (model=%s)", settings.claude_model)
 
         return result
 
